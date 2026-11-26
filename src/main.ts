@@ -1,10 +1,9 @@
-import { AudioPlayer } from "./audio/player";
+import { PlaybackClock } from "./audio/player";
 import { VideoRecorder } from "./export/recorder";
 import { LiveMode } from "./live/live";
 import { render, type RenderState } from "./render/renderer";
 import { FONTS } from "./render/themes";
 import { buildScenes, buildTimes } from "./scenes";
-import { SyncController } from "./sync/sync";
 import { loadProject, saveProject } from "./state";
 import { mountPanels } from "./ui/panels";
 import "./ui/styles.css";
@@ -35,10 +34,7 @@ async function startPreview(): Promise<void> {
   const previousButton = getElement<HTMLButtonElement>("#livePrev");
   const nextButton = getElement<HTMLButtonElement>("#liveNext");
   const exitLiveButton = getElement<HTMLButtonElement>("#liveExit");
-  const syncButton = getElement<HTMLButtonElement>("#sync");
-  const markButton = getElement<HTMLButtonElement>("#mark");
-  const syncStatus = getElement<HTMLElement>("#syncStatus");
-  const audioStatus = getElement<HTMLElement>("#audioStatus");
+  const status = getElement<HTMLElement>("#status");
   const exportButton = getElement<HTMLButtonElement>("#exp");
   const cancelButton = getElement<HTMLButtonElement>("#cancel");
   const saveButton = getElement<HTMLButtonElement>("#save");
@@ -49,7 +45,7 @@ async function startPreview(): Promise<void> {
   if (!ctx) throw new Error("Não foi possível iniciar o canvas 2D.");
 
   const project = loadProject();
-  const player = new AudioPlayer();
+  const player = new PlaybackClock();
   let scenes = buildScenes(project);
   let { times, total } = buildTimes(scenes, project);
   const [canvasWidth, canvasHeight] = project.settings.resolution
@@ -61,9 +57,7 @@ async function startPreview(): Promise<void> {
 
   let seeking = false;
   let lastUiUpdate = 0;
-  let audioLoading = false;
   let exportInProgress = false;
-  let playbackFailedDuringExport = false;
   let recorder: VideoRecorder | null = null;
   let completedVideo: Blob | null = null;
   let completedFilename = "";
@@ -84,34 +78,15 @@ async function startPreview(): Promise<void> {
     live: null,
   };
   const live = new LiveMode(player, () => scenes.length);
-  let sync: SyncController;
 
-  function updateSyncStatus(
-    active = sync?.isActive ?? false,
-    markedCount = sync?.markedCount ?? 0,
-    sceneCount = scenes.length,
-  ): void {
-    syncButton.textContent = active ? "Parar sincronia" : "Começar sincronia";
-    syncButton.disabled = sceneCount === 0 && !active;
-    markButton.disabled = !active;
+  function updatePlaybackControls(sceneCount = scenes.length): void {
     liveButton.disabled = sceneCount === 0;
-    exportButton.disabled = sceneCount === 0 || exportInProgress || audioLoading;
-
-    if (active) {
-      syncStatus.textContent = `Toque em "Marcar" (ou Espaço) quando cada linha começar. Linha ${markedCount + 1} de ${sceneCount}.`;
-    } else if (project.marks.length > 0) {
-      syncStatus.textContent =
-        project.marks.length === sceneCount
-          ? `Sincronia salva para ${sceneCount} cenas.`
-          : "A letra mudou: sincronize de novo.";
-    } else {
-      syncStatus.textContent = "";
-    }
+    exportButton.disabled = sceneCount === 0 || exportInProgress;
   }
 
   function updateProject(): void {
     scenes = buildScenes(project);
-    ({ times, total } = buildTimes(scenes, project, player.duration));
+    ({ times, total } = buildTimes(scenes, project));
     const [width, height] = project.settings.resolution.split("x").map(Number);
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
@@ -119,43 +94,11 @@ async function startPreview(): Promise<void> {
     }
     renderState.scenes = scenes;
     renderState.times = times;
-
-    if (sync?.isActive) sync.refreshSceneCount();
-    updateSyncStatus();
+    updatePlaybackControls();
   }
-
-  sync = new SyncController({
-    getSceneCount: () => scenes.length,
-    getSecondsPerScene: () => project.settings.secondsPerScene,
-    now: () => player.now(),
-    onMarksChange: (marks) => {
-      project.marks = marks;
-      saveProject(project);
-      updateProject();
-    },
-    onProgress: updateSyncStatus,
-  });
 
   mountPanels(project, updateProject, (logo) => {
     renderState.logo = logo;
-  }, {
-    load: async (file) => {
-      if (sync.isActive) sync.stop();
-      audioLoading = true;
-      updateSyncStatus();
-      try {
-        return await player.loadAudio(file);
-      } finally {
-        audioLoading = false;
-        updateSyncStatus();
-      }
-    },
-    remove: () => {
-      if (sync.isActive) sync.stop();
-      audioLoading = false;
-      player.removeAudio();
-      updateSyncStatus();
-    },
   });
 
   function setExportControls(disabled: boolean): void {
@@ -180,7 +123,7 @@ async function startPreview(): Promise<void> {
       control.disabled = wasDisabled;
     }
     previousControlStates = [];
-    updateSyncStatus();
+    updatePlaybackControls();
   }
 
   function resetExportUi(): void {
@@ -209,7 +152,6 @@ async function startPreview(): Promise<void> {
       return;
     }
 
-    if (sync.isActive) sync.stop();
     completedVideo = null;
     completedFilename = "";
     saveButton.hidden = true;
@@ -234,10 +176,7 @@ async function startPreview(): Promise<void> {
       },
       onCancel: () => {
         player.pause();
-        exportStatus.textContent = playbackFailedDuringExport
-          ? "Não foi possível iniciar a reprodução para gravar."
-          : "Gravação cancelada.";
-        playbackFailedDuringExport = false;
+        exportStatus.textContent = "Gravação cancelada.";
         resetExportUi();
       },
       onError: (error) => {
@@ -250,18 +189,8 @@ async function startPreview(): Promise<void> {
 
     try {
       player.seek(0);
-      const playback = player.play();
-      void playback.catch(() => {
-        if (!exportInProgress) return;
-        playbackFailedDuringExport = true;
-        player.pause();
-        currentRecorder.cancel();
-      });
-      currentRecorder.start(
-        canvas,
-        player.hasAudio ? player.mediaStreamDestination : null,
-        project.settings.resolution,
-      );
+      player.play();
+      currentRecorder.start(canvas, null, project.settings.resolution);
     } catch (error) {
       player.pause();
       exportStatus.textContent =
@@ -277,23 +206,18 @@ async function startPreview(): Promise<void> {
     );
   }
 
-  const togglePlayback = async () => {
+  const togglePlayback = () => {
     if (live.isActive) return;
     if (player.isPlaying) {
       player.pause();
       return;
     }
     if (player.now() >= total) player.seek(0);
-    try {
-      await player.play();
-      audioStatus.textContent = "";
-    } catch {
-      audioStatus.textContent = "Não foi possível iniciar a reprodução.";
-    }
+    player.play();
   };
 
   playButton.addEventListener("click", () => {
-    void togglePlayback();
+    togglePlayback();
   });
   seek.addEventListener("input", () => {
     player.seek((Number(seek.value) / 1000) * total);
@@ -305,21 +229,6 @@ async function startPreview(): Promise<void> {
     seeking = false;
   });
 
-  syncButton.addEventListener("click", () => {
-    if (sync.isActive) {
-      sync.stop();
-      return;
-    }
-    if (live.isActive) return;
-
-    sync.start();
-    player.seek(0);
-    void player.play().catch(() => {
-      audioStatus.textContent = "Não foi possível iniciar a reprodução.";
-      sync.stop();
-    });
-  });
-  markButton.addEventListener("click", () => sync.mark());
   exportButton.addEventListener("click", startRecording);
   cancelButton.addEventListener("click", () => {
     if (!exportInProgress) return;
@@ -348,17 +257,16 @@ async function startPreview(): Promise<void> {
     try {
       await live.exit();
     } catch {
-      audioStatus.textContent = "Não foi possível sair da tela cheia.";
+      status.textContent = "Não foi possível sair da tela cheia.";
     }
   };
 
   liveButton.addEventListener("click", () => {
-    if (sync.isActive) sync.stop();
     screenWrap.classList.add("live");
     liveBar.hidden = false;
     void live.start(screenWrap).catch((error: unknown) => {
       hideLiveControls();
-      audioStatus.textContent =
+      status.textContent =
         error instanceof Error
           ? error.message
           : "Não foi possível iniciar o modo ao vivo.";
@@ -417,11 +325,7 @@ async function startPreview(): Promise<void> {
 
     event.preventDefault();
     if (event.repeat) return;
-    if (sync.isActive) {
-      sync.mark();
-    } else {
-      void togglePlayback();
-    }
+    togglePlayback();
   });
 
   const frame = (timestamp: number) => {
@@ -471,7 +375,7 @@ async function startPreview(): Promise<void> {
     requestAnimationFrame(frame);
   };
 
-  updateSyncStatus();
+  updatePlaybackControls();
   requestAnimationFrame(frame);
 }
 

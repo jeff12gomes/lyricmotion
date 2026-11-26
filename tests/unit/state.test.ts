@@ -26,7 +26,7 @@ describe("project state", () => {
     const { data } = stubStorage();
     const project = createDefaultProject();
     project.title = "Canção de teste";
-    project.marks = [0, 4];
+    project.lyrics = "linha 1\nlinha 2\n\nlinha 3\n\nlinha 4\nlinha 5";
 
     saveProject(project);
 
@@ -52,5 +52,9 @@ describe("project state", () => {
     stubStorage({ [STORAGE_KEY]: JSON.stringify(invalidProject) });
 
     expect(loadProject()).toEqual(createDefaultProject());
+  });
+
+  it("uses six seconds per scene by default", () => {
+    expect(createDefaultProject().settings.secondsPerScene).toBe(6);
   });
 });

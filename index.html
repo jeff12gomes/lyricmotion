@@ -37,7 +37,7 @@
           value="0"
           aria-label="Posição da reprodução"
         />
-        <span id="time" class="time">0:00 / 0:24</span>
+        <span id="time" class="time">0:00 / 0:18</span>
         <button id="goLive" type="button">Ao vivo (tela cheia)</button>
       </section>
       <section class="panels" aria-label="Edição do projeto">
@@ -45,17 +45,13 @@
           <h2>Letra</h2>
           <label for="title">Nome da música (vira a cena de abertura)</label>
           <input id="title" type="text" placeholder="Opcional" />
-          <label for="lyrics">Uma linha = uma cena</label>
+          <label for="lyrics">Letra (blocos separados por linha em branco)</label>
           <textarea id="lyrics" spellcheck="false"></textarea>
           <p class="hint">
-            Coloque *asteriscos* em volta de uma palavra para destacá-la. Linhas
-            vazias são ignoradas.
+            Separe cada cena/vídeo pulando uma linha em branco. Use *asteriscos*
+            para destacar palavras.
           </p>
           <p class="sample">A letra inicial é um exemplo escrito para o teste.</p>
-          <label class="check">
-            <input id="two" type="checkbox" />
-            Duas linhas por cena
-          </label>
         </section>
 
         <section class="card">
@@ -102,34 +98,17 @@
         </section>
 
         <section class="card">
-          <h2>Música e tempo</h2>
-          <label for="audio">Arquivo de áudio (MP3, WAV…)</label>
-          <input id="audio" type="file" accept="audio/*" />
-          <button id="audioOff" class="secondary-button" type="button" hidden>
-            Remover áudio
-          </button>
-          <p id="audioStatus" class="status" role="status" aria-live="polite"></p>
-          <p class="hint">
-            Carregue uma faixa e marque o início de cada cena durante a
-            reprodução para sincronizar a letra.
-          </p>
-          <label for="dur">Segundos por cena (sem sincronia)</label>
+          <h2>Tempo e exportação</h2>
+          <label for="dur">Segundos por cena</label>
           <input
             id="dur"
             type="number"
-            min="1"
+            min="2"
             max="30"
             step="0.5"
-            value="4"
+            value="6"
           />
-          <h3>Sincronizar com a música</h3>
-          <button id="sync" class="wide-button" type="button">
-            Começar sincronia
-          </button>
-          <button id="mark" class="wide-button primary-button" type="button" disabled>
-            Marcar próxima linha (Espaço)
-          </button>
-          <p id="syncStatus" class="status" role="status" aria-live="polite"></p>
+          <p id="status" class="status" role="status" aria-live="polite"></p>
           <h3>Exportar vídeo</h3>
           <label for="res">Tamanho</label>
           <select id="res">

@@ -1,4 +1,4 @@
-import type { AudioPlayer } from "../audio/player";
+import type { PlaybackClock } from "../audio/player";
 
 export interface LiveRenderState {
   sceneIndex: number;
@@ -13,7 +13,7 @@ export class LiveMode {
   private sceneStart = 0;
 
   constructor(
-    private readonly player: AudioPlayer,
+    private readonly player: PlaybackClock,
     private readonly getSceneCount: () => number,
   ) {}
 
@@ -40,7 +40,6 @@ export class LiveMode {
       throw new Error("Tela cheia não está disponível neste navegador.");
     }
 
-    this.player.pause();
     this.player.enterLiveMode();
     this.active = true;
     this.sceneIndex = 0;

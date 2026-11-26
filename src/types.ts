@@ -26,7 +26,6 @@ export interface Settings {
   highlightColor: string;
   uppercase: boolean;
   shadow: boolean;
-  twoLines: boolean;
   secondsPerScene: number;
   resolution: Resolution;
 }
@@ -36,7 +35,6 @@ export interface Project {
   title: string;
   lyrics: string;
   settings: Settings;
-  marks: number[];
 }
 
 export interface Theme {

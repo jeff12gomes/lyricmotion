@@ -81,7 +81,7 @@ export function drawText(
       size,
       width * 0.84,
     );
-    if (layout.lines.length <= (settings.twoLines ? 4 : 3)) break;
+    if (layout.lines.length <= 4) break;
     size *= 0.88;
   }
 

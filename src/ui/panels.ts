@@ -26,11 +26,6 @@ const RESOLUTION_OPTIONS: Resolution[] = [
   "1080x1920",
 ];
 
-export interface AudioPanelActions {
-  load: (file: File) => Promise<number>;
-  remove: () => void;
-}
-
 function getElement<T extends HTMLElement>(selector: string): T {
   const element = document.querySelector<T>(selector);
   if (!element) {
@@ -73,11 +68,9 @@ export function mountPanels(
   project: Project,
   onProjectChange: () => void,
   onLogoChange: (logo: HTMLImageElement | null) => void,
-  audioActions: AudioPanelActions,
 ): void {
   const titleInput = getElement<HTMLInputElement>("#title");
   const lyricsInput = getElement<HTMLTextAreaElement>("#lyrics");
-  const twoLinesInput = getElement<HTMLInputElement>("#two");
   const themeGrid = getElement<HTMLDivElement>("#themes");
   const fontSelect = getElement<HTMLSelectElement>("#font");
   const animationSelect = getElement<HTMLSelectElement>("#anim");
@@ -88,14 +81,10 @@ export function mountPanels(
   const shadowInput = getElement<HTMLInputElement>("#shadow");
   const secondsInput = getElement<HTMLInputElement>("#dur");
   const resolutionSelect = getElement<HTMLSelectElement>("#res");
-  const audioInput = getElement<HTMLInputElement>("#audio");
-  const removeAudioButton = getElement<HTMLButtonElement>("#audioOff");
-  const audioStatus = getElement<HTMLElement>("#audioStatus");
   const logoInput = getElement<HTMLInputElement>("#logo");
   const removeLogoButton = getElement<HTMLButtonElement>("#logoOff");
   const logoStatus = getElement<HTMLElement>("#logoStatus");
   let logoRequestId = 0;
-  let audioRequestId = 0;
 
   const commit = () => {
     saveProject(project);
@@ -146,7 +135,6 @@ export function mountPanels(
 
   titleInput.value = project.title;
   lyricsInput.value = project.lyrics;
-  twoLinesInput.checked = project.settings.twoLines;
   syncSettings();
 
   titleInput.addEventListener("input", () => {
@@ -157,11 +145,6 @@ export function mountPanels(
     project.lyrics = lyricsInput.value;
     commit();
   });
-  twoLinesInput.addEventListener("change", () => {
-    project.settings.twoLines = twoLinesInput.checked;
-    commit();
-  });
-
   themeGrid.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest<HTMLButtonElement>(".theme");
@@ -222,7 +205,7 @@ export function mountPanels(
       }
       return;
     }
-    let seconds = Math.min(30, Math.max(1, value));
+    let seconds = Math.min(30, Math.max(2, value));
     if (normalize) {
       seconds = Math.round(seconds * 2) / 2;
       secondsInput.value = String(seconds);
@@ -239,24 +222,6 @@ export function mountPanels(
     if (!resolution) return;
     project.settings.resolution = resolution;
     commit();
-  });
-
-  audioInput.addEventListener("change", () => {
-    const file = audioInput.files?.[0];
-    if (!file) return;
-    const requestId = ++audioRequestId;
-    audioInput.value = "";
-    void loadAudio(file, requestId);
-  });
-
-  removeAudioButton.addEventListener("click", () => {
-    audioRequestId += 1;
-    audioActions.remove();
-    removeAudioButton.hidden = true;
-    audioInput.value = "";
-    audioStatus.textContent = "";
-    saveProject(project);
-    onProjectChange();
   });
 
   logoInput.addEventListener("change", () => {
@@ -308,26 +273,6 @@ export function mountPanels(
     }
   }
 
-  async function loadAudio(file: File, requestId: number): Promise<void> {
-    audioStatus.textContent = "Carregando arquivo de áudio…";
-    removeAudioButton.hidden = true;
-    try {
-      const loading = audioActions.load(file);
-      onProjectChange();
-      const duration = await loading;
-      if (requestId !== audioRequestId) return;
-      removeAudioButton.hidden = false;
-      audioStatus.textContent = `Áudio carregado · ${formatTime(duration)}.`;
-      saveProject(project);
-      onProjectChange();
-    } catch {
-      if (requestId === audioRequestId) {
-        audioStatus.textContent = "Não foi possível carregar este arquivo de áudio.";
-        onProjectChange();
-      }
-    }
-  }
-
   const restoreRequestId = logoRequestId;
   try {
     const storedLogo = globalThis.localStorage.getItem(LOGO_STORAGE_KEY);
@@ -349,11 +294,6 @@ export function mountPanels(
   } catch {
     logoStatus.textContent = "Não foi possível restaurar o logo salvo.";
   }
-}
-
-function formatTime(seconds: number): string {
-  const wholeSeconds = Math.max(0, Math.floor(seconds));
-  return `${Math.floor(wholeSeconds / 60)}:${String(wholeSeconds % 60).padStart(2, "0")}`;
 }
 
 function applyTheme(project: Project, theme: Theme): void {

@@ -3,16 +3,19 @@ import { buildScenes, buildTimes, parseHighlights } from "../../src/scenes";
 import { createDefaultProject } from "../../src/state";
 
 describe("buildScenes", () => {
-  it("creates one scene per line", () => {
+  it("creates one scene for each block separated by a blank line", () => {
     const project = createDefaultProject();
-    project.lyrics = Array.from({ length: 10 }, (_, index) => `Linha ${index + 1}`).join(
-      "\n",
-    );
+    project.lyrics =
+      "linha 1\nlinha 2\n\nlinha 3\n\nlinha 4\nlinha 5";
 
-    expect(buildScenes(project)).toHaveLength(10);
+    expect(buildScenes(project)).toEqual([
+      { text: "linha 1\nlinha 2" },
+      { text: "linha 3" },
+      { text: "linha 4\nlinha 5" },
+    ]);
   });
 
-  it("ignores blank lines and trims non-empty lines", () => {
+  it("ignores repeated blank lines and trims block lines", () => {
     const project = createDefaultProject();
     project.lyrics = "  Primeira  \n\n   \n Segunda ";
 
@@ -22,14 +25,12 @@ describe("buildScenes", () => {
     ]);
   });
 
-  it("groups two lines into each scene", () => {
+  it("preserves line breaks inside a block", () => {
     const project = createDefaultProject();
     project.lyrics = "Um\nDois\nTrês";
-    project.settings.twoLines = true;
 
     expect(buildScenes(project)).toEqual([
-      { text: "Um\nDois" },
-      { text: "Três" },
+      { text: "Um\nDois\nTrês" },
     ]);
   });
 
@@ -58,29 +59,22 @@ describe("parseHighlights", () => {
 });
 
 describe("buildTimes", () => {
-  it("uses the interval when there are no complete synchronization marks", () => {
+  it("assigns each scene the configured fixed duration", () => {
     const project = createDefaultProject();
     project.settings.secondsPerScene = 3;
-    project.marks = [2];
 
-    expect(buildTimes([{ text: "Um" }, { text: "Dois" }, { text: "Três" }], project)).toEqual({
+    expect(
+      buildTimes([{ text: "Um" }, { text: "Dois" }, { text: "Três" }], project),
+    ).toEqual({
       times: [0, 3, 6],
       total: 9,
     });
   });
 
-  it("uses complete synchronization marks and audio duration when provided", () => {
-    const project = createDefaultProject();
-    project.settings.secondsPerScene = 4;
-    project.marks = [1.5, 6];
-
-    expect(buildTimes([{ text: "Um" }, { text: "Dois" }], project)).toEqual({
-      times: [1.5, 6],
-      total: 10,
-    });
-    expect(buildTimes([{ text: "Um" }, { text: "Dois" }], project, 12)).toEqual({
-      times: [1.5, 6],
-      total: 12,
+  it("has no total duration when the project has no scenes", () => {
+    expect(buildTimes([], createDefaultProject())).toEqual({
+      times: [],
+      total: 0,
     });
   });
 });

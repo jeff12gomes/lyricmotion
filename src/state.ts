@@ -12,8 +12,10 @@ const STORAGE_KEY = "lyricmotion:projeto:v1";
 const SAMPLE_LYRICS = [
   "Tu és fiel em cada amanhecer",
   "Teu *amor* me alcança outra vez",
+  "",
   "Quando a noite parecer não ter fim",
   "Tua *luz* brilha dentro de mim",
+  "",
   "Eu me rendo a Ti, Senhor",
   "Toda a *glória* é Tua",
 ].join("\n");
@@ -48,11 +50,9 @@ export function createDefaultProject(): Project {
       highlightColor: "#ffd166",
       uppercase: false,
       shadow: true,
-      twoLines: false,
-      secondsPerScene: 4,
+      secondsPerScene: 6,
       resolution: "1920x1080",
     },
-    marks: [],
   };
 }
 
@@ -80,26 +80,43 @@ function isSettings(value: unknown): value is Settings {
     typeof value.highlightColor === "string" &&
     typeof value.uppercase === "boolean" &&
     typeof value.shadow === "boolean" &&
-    typeof value.twoLines === "boolean" &&
     typeof value.secondsPerScene === "number" &&
     Number.isFinite(value.secondsPerScene) &&
-    value.secondsPerScene > 0 &&
+    value.secondsPerScene >= 2 &&
+    value.secondsPerScene <= 30 &&
     isOneOf(value.resolution, resolutions)
   );
 }
 
-function isProject(value: unknown): value is Project {
+function isProject(value: unknown): value is Project & Record<string, unknown> {
   return (
     isRecord(value) &&
     value.version === 1 &&
     typeof value.title === "string" &&
     typeof value.lyrics === "string" &&
-    isSettings(value.settings) &&
-    Array.isArray(value.marks) &&
-    value.marks.every(
-      (mark) => typeof mark === "number" && Number.isFinite(mark) && mark >= 0,
-    )
+    isSettings(value.settings)
   );
+}
+
+function sanitizeProject(value: Project & Record<string, unknown>): Project {
+  const { settings } = value;
+  return {
+    version: 1,
+    title: value.title,
+    lyrics: value.lyrics,
+    settings: {
+      themeId: settings.themeId,
+      font: settings.font,
+      animation: settings.animation,
+      position: settings.position,
+      inkColor: settings.inkColor,
+      highlightColor: settings.highlightColor,
+      uppercase: settings.uppercase,
+      shadow: settings.shadow,
+      secondsPerScene: settings.secondsPerScene,
+      resolution: settings.resolution,
+    },
+  };
 }
 
 export function loadProject(): Project {
@@ -108,7 +125,9 @@ export function loadProject(): Project {
     if (stored === null) return createDefaultProject();
 
     const project: unknown = JSON.parse(stored);
-    return isProject(project) ? project : createDefaultProject();
+    return isProject(project)
+      ? sanitizeProject(project)
+      : createDefaultProject();
   } catch {
     return createDefaultProject();
   }

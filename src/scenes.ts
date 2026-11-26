@@ -1,22 +1,27 @@
 import type { HighlightWord, Project, Scene } from "./types";
 
 export function buildScenes(project: Project): Scene[] {
-  const lines = project.lyrics
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
   const scenes: Scene[] = [];
 
   if (project.title.trim()) {
     scenes.push({ text: project.title.trim(), title: true });
   }
 
-  const linesPerScene = project.settings.twoLines ? 2 : 1;
-  for (let index = 0; index < lines.length; index += linesPerScene) {
-    scenes.push({
-      text: lines.slice(index, index + linesPerScene).join("\n"),
-    });
+  let block: string[] = [];
+  const addBlock = () => {
+    if (block.length > 0) scenes.push({ text: block.join("\n") });
+    block = [];
+  };
+
+  for (const line of project.lyrics.split(/\r?\n/)) {
+    const trimmedLine = line.trim();
+    if (trimmedLine === "") {
+      addBlock();
+    } else {
+      block.push(trimmedLine);
+    }
   }
+  addBlock();
 
   return scenes;
 }
@@ -24,17 +29,12 @@ export function buildScenes(project: Project): Scene[] {
 export function buildTimes(
   scenes: Scene[],
   project: Project,
-  audioDuration?: number,
 ): { times: number[]; total: number } {
-  const marksAreComplete = project.marks.length === scenes.length;
-  const times = marksAreComplete
-    ? [...project.marks]
-    : scenes.map((_, index) => index * project.settings.secondsPerScene);
-  const lastTime = times[times.length - 1] ?? 0;
-  const total =
-    audioDuration ?? lastTime + project.settings.secondsPerScene;
-
-  return { times, total };
+  const secondsPerScene = project.settings.secondsPerScene;
+  return {
+    times: scenes.map((_, index) => index * secondsPerScene),
+    total: scenes.length * secondsPerScene,
+  };
 }
 
 export function parseHighlights(text: string): HighlightWord[] {
