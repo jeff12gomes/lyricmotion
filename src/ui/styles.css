@@ -1,0 +1,39 @@
+:root {
+  color-scheme: dark;
+  font-family: "Manrope", sans-serif;
+  color: #eceaf2;
+  background: #0f0e13;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --color-background: #0f0e13;
+  --color-panel: #18171f;
+  --color-border: #2a2833;
+  --color-text: #eceaf2;
+  --color-text-secondary: #9b98a8;
+  --color-accent: #ff5a4e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+#app {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 2rem;
+  text-align: center;
+  font-size: clamp(1.5rem, 5vw, 3rem);
+  font-weight: 800;
+}
