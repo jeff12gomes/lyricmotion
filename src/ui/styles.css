@@ -24,16 +24,417 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  overflow-x: clip;
   background: var(--color-background);
   color: var(--color-text);
+  font-size: 16px;
+  line-height: 1.5;
 }
 
 #app {
-  display: grid;
   min-height: 100vh;
+}
+
+.stage {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 10px max(4vw, 16px) 0;
+  background: #000;
+}
+
+.screen-wrap {
+  position: relative;
+}
+
+#screen {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.screen-wrap:fullscreen {
+  display: grid;
+  width: 100vw;
+  height: 100vh;
   place-items: center;
-  padding: 2rem;
-  text-align: center;
-  font-size: clamp(1.5rem, 5vw, 3rem);
+  background: #000;
+}
+
+.screen-wrap:fullscreen #screen {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.live-bar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px;
+  background: linear-gradient(transparent, #000a);
+  opacity: 0.2;
+  transition: opacity 0.3s;
+}
+
+.live-bar[hidden] {
+  display: none;
+}
+
+.live-bar:hover,
+.live-bar:focus-within {
+  opacity: 1;
+}
+
+.live-bar button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #34313d;
+  border-radius: 10px;
+  background: #26242e;
+  color: var(--color-text);
+  font: 600 15px "Manrope", sans-serif;
+  cursor: pointer;
+}
+
+.live-bar button:hover {
+  background: #2f2c38;
+}
+
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 12px max(4vw, 16px);
+}
+
+#play {
+  flex: 0 0 52px;
+  min-height: 44px;
+  border: 1px solid #34313d;
+  border-radius: 10px;
+  background: #26242e;
+  color: var(--color-text);
+  font: 600 18px "Manrope", sans-serif;
+  cursor: pointer;
+}
+
+#play:hover {
+  background: #2f2c38;
+}
+
+#goLive {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #34313d;
+  border-radius: 10px;
+  background: #26242e;
+  color: var(--color-text);
+  font: 600 15px "Manrope", sans-serif;
+  cursor: pointer;
+}
+
+#goLive:hover {
+  background: #2f2c38;
+}
+
+#play:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+#seek {
+  flex: 1 1 200px;
+  height: 44px;
+  accent-color: var(--color-accent);
+}
+
+.time {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.panels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 8px max(4vw, 16px) 40px;
+}
+
+.card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-panel);
+}
+
+.card h2 {
+  margin: 0 0 12px;
+  font-size: 17px;
   font-weight: 800;
+}
+
+.card h3 {
+  margin: 18px 0 8px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.card label {
+  display: block;
+  margin: 10px 0 4px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.card input[type="text"],
+.card input[type="number"],
+.card select,
+.card textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: #0f0e14;
+  color: var(--color-text);
+  font: 16px "Manrope", sans-serif;
+}
+
+.card textarea {
+  min-height: 240px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.hint,
+.sample {
+  margin: 6px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.themes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.theme {
+  display: flex;
+  min-width: 0;
+  min-height: 58px;
+  align-items: flex-end;
+  padding: 6px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  color: #fff;
+  font: 800 12px/1.1 "Manrope", sans-serif;
+  text-align: left;
+  cursor: pointer;
+}
+
+.theme[aria-pressed="true"] {
+  border-color: var(--color-accent);
+}
+
+.theme:hover {
+  filter: brightness(1.12);
+}
+
+.check {
+  display: flex !important;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  margin: 0 !important;
+  color: var(--color-text) !important;
+}
+
+.check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--color-accent);
+}
+
+.colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.colors label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  color: var(--color-text);
+}
+
+.colors input {
+  width: 44px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: none;
+}
+
+.file-label {
+  margin-bottom: 4px !important;
+}
+
+#logo {
+  width: 100%;
+  min-height: 44px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.card input[type="file"] {
+  width: 100%;
+  min-height: 44px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.secondary-button {
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 0 16px;
+  border: 1px solid #34313d;
+  border-radius: 10px;
+  background: #26242e;
+  color: var(--color-text);
+  font: 600 15px "Manrope", sans-serif;
+  cursor: pointer;
+}
+
+.wide-button {
+  display: block;
+  width: 100%;
+  min-height: 56px;
+  margin-top: 8px;
+  padding: 0 16px;
+  border: 1px solid #34313d;
+  border-radius: 10px;
+  background: #26242e;
+  color: var(--color-text);
+  font: 600 15px "Manrope", sans-serif;
+  cursor: pointer;
+}
+
+.wide-button[hidden] {
+  display: none;
+}
+
+.wide-button:hover:not(:disabled) {
+  background: #2f2c38;
+}
+
+.wide-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.primary-button {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: #1a0705;
+}
+
+.primary-button:hover:not(:disabled) {
+  background: #ff7166;
+}
+
+.status {
+  min-height: 1.5em;
+  margin: 8px 0 0;
+  color: var(--color-accent);
+  font-size: 13px;
+}
+
+.bar {
+  height: 8px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #0f0e14;
+}
+
+.bar[hidden] {
+  display: none;
+}
+
+.bar i {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--color-accent);
+}
+
+@media (max-width: 480px) {
+  .transport {
+    gap: 8px;
+    padding-inline: 12px;
+  }
+
+  .live-bar {
+    gap: 4px;
+    padding: 6px;
+  }
+
+  .live-bar button {
+    padding-inline: 6px;
+    font-size: 12px;
+  }
+
+  .time {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 1000px) {
+  .panels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .panels .c1 {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .panels .c1 {
+    grid-column: auto;
+  }
 }

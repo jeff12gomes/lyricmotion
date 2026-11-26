@@ -38,27 +38,33 @@ export function buildTimes(
 }
 
 export function parseHighlights(text: string): HighlightWord[] {
+  return parseHighlightLines(text).flat();
+}
+
+export function parseHighlightLines(text: string): HighlightWord[][] {
   let highlighted = false;
-  const words: HighlightWord[] = [];
 
-  for (let word of text.split(/\s+/).filter(Boolean)) {
-    let wordIsHighlighted: boolean = highlighted;
-    if (word.startsWith("*")) {
-      wordIsHighlighted = true;
-      word = word.slice(1);
+  return text.split("\n").map((row) => {
+    const words: HighlightWord[] = [];
+    for (let word of row.split(/\s+/).filter(Boolean)) {
+      let wordIsHighlighted: boolean = highlighted;
+      if (word.startsWith("*")) {
+        wordIsHighlighted = true;
+        word = word.slice(1);
+      }
+
+      if (word.endsWith("*")) {
+        word = word.slice(0, -1);
+        highlighted = false;
+      } else {
+        highlighted = wordIsHighlighted;
+      }
+
+      if (word) {
+        words.push({ text: word, highlighted: wordIsHighlighted });
+      }
     }
 
-    if (word.endsWith("*")) {
-      word = word.slice(0, -1);
-      highlighted = false;
-    } else {
-      highlighted = wordIsHighlighted;
-    }
-
-    if (word) {
-      words.push({ text: word, highlighted: wordIsHighlighted });
-    }
-  }
-
-  return words;
+    return words;
+  });
 }

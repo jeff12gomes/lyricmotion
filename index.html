@@ -13,7 +13,156 @@
     />
   </head>
   <body>
-    <main id="app"></main>
+    <main id="app">
+      <section class="stage" aria-label="Prévia do telão">
+        <div id="screenWrap" class="screen-wrap">
+          <canvas id="screen" width="1920" height="1080">
+            Seu navegador não oferece suporte a canvas.
+          </canvas>
+          <div id="liveBar" class="live-bar" hidden>
+            <button id="livePrev" type="button">◀ Anterior</button>
+            <span id="liveInfo" class="time"></span>
+            <button id="liveNext" type="button">Próxima ▶</button>
+            <button id="liveExit" type="button">Sair do ao vivo</button>
+          </div>
+        </div>
+      </section>
+      <section class="transport" aria-label="Controles de reprodução">
+        <button id="play" type="button" aria-label="Tocar">▶</button>
+        <input
+          id="seek"
+          type="range"
+          min="0"
+          max="1000"
+          value="0"
+          aria-label="Posição da reprodução"
+        />
+        <span id="time" class="time">0:00 / 0:24</span>
+        <button id="goLive" type="button">Ao vivo (tela cheia)</button>
+      </section>
+      <section class="panels" aria-label="Edição do projeto">
+        <section class="card c1">
+          <h2>Letra</h2>
+          <label for="title">Nome da música (vira a cena de abertura)</label>
+          <input id="title" type="text" placeholder="Opcional" />
+          <label for="lyrics">Uma linha = uma cena</label>
+          <textarea id="lyrics" spellcheck="false"></textarea>
+          <p class="hint">
+            Coloque *asteriscos* em volta de uma palavra para destacá-la. Linhas
+            vazias são ignoradas.
+          </p>
+          <p class="sample">A letra inicial é um exemplo escrito para o teste.</p>
+          <label class="check">
+            <input id="two" type="checkbox" />
+            Duas linhas por cena
+          </label>
+        </section>
+
+        <section class="card">
+          <h2>Estilo</h2>
+          <div id="themes" class="themes" aria-label="Temas"></div>
+          <div class="row">
+            <div>
+              <label for="font">Fonte</label>
+              <select id="font"></select>
+            </div>
+            <div>
+              <label for="anim">Animação</label>
+              <select id="anim">
+                <option value="subir">Subir suave</option>
+                <option value="palavras">Palavra por palavra</option>
+                <option value="zoom">Aproximar</option>
+              </select>
+            </div>
+          </div>
+          <label for="pos">Posição do texto</label>
+          <select id="pos">
+            <option value="centro">Centro</option>
+            <option value="baixo">Terço inferior (para transmissão)</option>
+          </select>
+          <div class="colors">
+            <label for="ink"><input id="ink" type="color" /> Texto</label>
+            <label for="hl"><input id="hl" type="color" /> Destaque</label>
+          </div>
+          <label class="check">
+            <input id="up" type="checkbox" />
+            Letras maiúsculas
+          </label>
+          <label class="check">
+            <input id="shadow" type="checkbox" />
+            Sombra no texto
+          </label>
+          <h3>Logo da igreja</h3>
+          <label class="file-label" for="logo">Enviar imagem do logo</label>
+          <input id="logo" type="file" accept="image/*" />
+          <button id="logoOff" class="secondary-button" type="button" hidden>
+            Remover logo
+          </button>
+          <p id="logoStatus" class="status" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="card">
+          <h2>Música e tempo</h2>
+          <label for="audio">Arquivo de áudio (MP3, WAV…)</label>
+          <input id="audio" type="file" accept="audio/*" />
+          <button id="audioOff" class="secondary-button" type="button" hidden>
+            Remover áudio
+          </button>
+          <p id="audioStatus" class="status" role="status" aria-live="polite"></p>
+          <p class="hint">
+            Carregue uma faixa e marque o início de cada cena durante a
+            reprodução para sincronizar a letra.
+          </p>
+          <label for="dur">Segundos por cena (sem sincronia)</label>
+          <input
+            id="dur"
+            type="number"
+            min="1"
+            max="30"
+            step="0.5"
+            value="4"
+          />
+          <h3>Sincronizar com a música</h3>
+          <button id="sync" class="wide-button" type="button">
+            Começar sincronia
+          </button>
+          <button id="mark" class="wide-button primary-button" type="button" disabled>
+            Marcar próxima linha (Espaço)
+          </button>
+          <p id="syncStatus" class="status" role="status" aria-live="polite"></p>
+          <h3>Exportar vídeo</h3>
+          <label for="res">Tamanho</label>
+          <select id="res">
+            <option value="1920x1080">Full HD 16:9 (1920×1080)</option>
+            <option value="1280x720">HD leve (1280×720)</option>
+            <option value="2560x720">Painel LED largo 32:9 (2560×720)</option>
+            <option value="1080x1920">Vertical 9:16 (1080×1920)</option>
+          </select>
+          <button id="exp" class="wide-button primary-button" type="button">
+            Gravar vídeo
+          </button>
+          <button id="cancel" class="wide-button" type="button" hidden>
+            Cancelar gravação
+          </button>
+          <div
+            id="bar"
+            class="bar"
+            role="progressbar"
+            aria-label="Progresso da gravação"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            hidden
+          >
+            <i id="barFill"></i>
+          </div>
+          <p id="expStatus" class="status" role="status" aria-live="polite"></p>
+          <button id="save" class="wide-button" type="button" hidden>
+            Salvar vídeo
+          </button>
+        </section>
+      </section>
+    </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
