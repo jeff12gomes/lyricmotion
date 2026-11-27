@@ -250,6 +250,28 @@ export function mountPanels(
     getElement<HTMLInputElement>("#includeTitleScene");
   const lyricsInput = getElement<HTMLTextAreaElement>("#lyrics");
   const themeGrid = getElement<HTMLDivElement>("#themes");
+  themeGrid.addEventListener(
+    "wheel",
+    (event) => {
+      if (event.deltaY === 0 || event.deltaX !== 0) return;
+
+      const maxScrollLeft = themeGrid.scrollWidth - themeGrid.clientWidth;
+      if (maxScrollLeft <= 0) return;
+
+      const canScroll =
+        event.deltaY < 0
+          ? themeGrid.scrollLeft > 0
+          : themeGrid.scrollLeft < maxScrollLeft;
+      if (!canScroll) return;
+
+      event.preventDefault();
+      themeGrid.scrollBy({
+        left: event.deltaY * 1.2,
+        behavior: "smooth",
+      });
+    },
+    { passive: false },
+  );
   const editingSceneLabel = getElement<HTMLElement>("#editingScene");
   const applyStyleAllButton =
     getElement<HTMLButtonElement>("#applyStyleAll");

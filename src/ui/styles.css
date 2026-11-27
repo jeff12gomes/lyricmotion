@@ -45,6 +45,23 @@ body {
   padding: 18px max(4vw, 16px) 0;
 }
 
+.back-to-library {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: #18171f;
+  color: var(--color-text-secondary);
+  font: 600 14px "Manrope", sans-serif;
+  cursor: pointer;
+}
+
+.back-to-library:hover {
+  background: #26242e;
+  color: var(--color-text);
+}
+
 .music-title-field {
   flex: 1 1 auto;
   min-width: 0;
@@ -560,8 +577,31 @@ textarea:focus-visible {
   overscroll-behavior: contain;
   scroll-behavior: smooth;
   scroll-snap-type: x proximity;
-  scrollbar-color: var(--color-text-secondary) var(--color-panel);
+  scrollbar-color: #2a2833 var(--color-panel);
   scrollbar-width: thin;
+}
+
+.themes:hover {
+  scrollbar-color: #ff5a4e var(--color-panel);
+}
+
+.themes::-webkit-scrollbar {
+  height: 8px;
+}
+
+.themes::-webkit-scrollbar-track {
+  border-radius: 8px;
+  background: #2a2833;
+}
+
+.themes::-webkit-scrollbar-thumb {
+  border: 2px solid #2a2833;
+  border-radius: 8px;
+  background: #777383;
+}
+
+.themes:hover::-webkit-scrollbar-thumb {
+  background: #ff5a4e;
 }
 
 .theme {
@@ -977,6 +1017,10 @@ textarea:focus-visible {
     align-items: stretch;
     flex-direction: column;
     gap: 8px;
+  }
+
+  .back-to-library {
+    align-self: flex-start;
   }
 
   .save-changes {

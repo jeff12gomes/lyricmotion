@@ -5,7 +5,12 @@ import { LiveMode } from "./live/live";
 import { render, type RenderState } from "./render/renderer";
 import { FONT_CATALOG } from "./render/themes";
 import { buildScenes, buildTimes } from "./scenes";
-import { getEffectiveStyle, loadProject } from "./state";
+import {
+  createDefaultProject,
+  getEffectiveStyle,
+  loadLibrary,
+  saveProjectToLibrary,
+} from "./state";
 import {
   mountPanels,
   renderSceneVideos,
@@ -43,6 +48,8 @@ async function startPreview(): Promise<void> {
   const status = getElement<HTMLElement>("#status");
   const exportButton = getElement<HTMLButtonElement>("#exp");
   const saveChangesButton = getElement<HTMLButtonElement>("#saveChanges");
+  const backToLibraryButton =
+    getElement<HTMLButtonElement>("#backToLibrary");
   const cancelButton = getElement<HTMLButtonElement>("#cancel");
   const saveButton = getElement<HTMLButtonElement>("#save");
   const progressBar = getElement<HTMLDivElement>("#bar");
@@ -52,12 +59,13 @@ async function startPreview(): Promise<void> {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Não foi possível iniciar o canvas 2D.");
 
-  const project = loadProject();
+  const project = loadLibrary().projects[0] ?? createDefaultProject();
   const player = new PlaybackClock();
   let scenes = buildScenes(project);
   let times = buildTimes(scenes, project).times;
   let selectedSceneIndex = 0;
   let hasUnsavedChanges = false;
+  let saveFeedbackTimer = 0;
   let stylePanel: { syncSceneStyle: () => void } | null = null;
   const [canvasWidth, canvasHeight] = project.settings.resolution
     .split("x")
@@ -103,6 +111,8 @@ async function startPreview(): Promise<void> {
 
   function markUnsavedChanges(): void {
     hasUnsavedChanges = true;
+    window.clearTimeout(saveFeedbackTimer);
+    saveChangesButton.textContent = "Salvar alterações";
     saveChangesButton.classList.toggle(
       "has-unsaved-changes",
       hasUnsavedChanges,
@@ -399,6 +409,29 @@ async function startPreview(): Promise<void> {
   });
   saveButton.addEventListener("click", async () => {
     await downloadZip();
+  });
+  saveChangesButton.addEventListener("click", () => {
+    if (!hasUnsavedChanges) return;
+    try {
+      saveProjectToLibrary(project);
+      hasUnsavedChanges = false;
+      saveChangesButton.classList.remove("has-unsaved-changes");
+      saveChangesButton.textContent = "Salvo!";
+      window.clearTimeout(saveFeedbackTimer);
+      saveFeedbackTimer = window.setTimeout(() => {
+        saveChangesButton.textContent = "Salvar alterações";
+      }, 1400);
+    } catch {
+      status.textContent =
+        "Não foi possível salvar a música na biblioteca deste navegador.";
+    }
+  });
+  backToLibraryButton.addEventListener("click", () => {
+    window.dispatchEvent(
+      new CustomEvent("lyricmotion:navigate", {
+        detail: { screen: "dashboard" },
+      }),
+    );
   });
 
   const hideLiveControls = () => {

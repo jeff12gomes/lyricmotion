@@ -3,6 +3,7 @@ import type {
   Animation,
   AnimationUnit,
   FontFamily,
+  LibraryData,
   Project,
   Position,
   Resolution,
@@ -10,7 +11,9 @@ import type {
   Settings,
 } from "./types";
 
-const STORAGE_KEY = "lyricmotion:projeto:v1";
+const LIBRARY_STORAGE_KEY = "lyricmotion:biblioteca:v1";
+const LEGACY_STORAGE_KEY = "lyricmotion:projeto:v1";
+const DEFAULT_USER_NAME = "Equipe de Mídia";
 const SAMPLE_LYRICS = [
   "Tu és fiel em cada amanhecer",
   "Teu *amor* me alcança outra vez",
@@ -47,6 +50,8 @@ const resolutions: Resolution[] = [
 export function createDefaultProject(): Project {
   return {
     version: 1,
+    id: createProjectId(),
+    updatedAt: Date.now(),
     title: "",
     includeTitleScene: true,
     lyrics: SAMPLE_LYRICS,
@@ -72,6 +77,20 @@ export function createDefaultProject(): Project {
       secondsPerScene: 6,
       resolution: "1920x1080",
     },
+  };
+}
+
+function createProjectId(): string {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+  return `projeto-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function createDefaultLibrary(): LibraryData {
+  return {
+    userName: DEFAULT_USER_NAME,
+    projects: [createDefaultProject()],
   };
 }
 
@@ -229,6 +248,10 @@ function isProject(value: unknown): value is Project & Record<string, unknown> {
   return (
     isRecord(value) &&
     value.version === 1 &&
+    typeof value.id === "string" &&
+    value.id.length > 0 &&
+    typeof value.updatedAt === "number" &&
+    Number.isFinite(value.updatedAt) &&
     typeof value.title === "string" &&
     typeof value.includeTitleScene === "boolean" &&
     typeof value.lyrics === "string" &&
@@ -241,6 +264,8 @@ function sanitizeProject(value: Project & Record<string, unknown>): Project {
   const { settings } = value;
   return {
     version: 1,
+    id: value.id,
+    updatedAt: value.updatedAt,
     title: value.title,
     includeTitleScene: value.includeTitleScene,
     lyrics: value.lyrics,
@@ -330,16 +355,29 @@ function migrateProject(value: unknown): unknown {
     typeof value.includeTitleScene === "boolean"
       ? value.includeTitleScene
       : true;
+  const id =
+    typeof value.id === "string" && value.id.length > 0
+      ? value.id
+      : createProjectId();
+  const updatedAt =
+    typeof value.updatedAt === "number" && Number.isFinite(value.updatedAt)
+      ? value.updatedAt
+      : Date.now();
   if (
     Object.keys(additions).length === 0 &&
     isRecord(value.sceneStyles) &&
-    typeof value.includeTitleScene === "boolean"
+    typeof value.includeTitleScene === "boolean" &&
+    typeof value.id === "string" &&
+    typeof value.updatedAt === "number" &&
+    Number.isFinite(value.updatedAt)
   ) {
     return value;
   }
 
   return {
     ...value,
+    id,
+    updatedAt,
     includeTitleScene,
     sceneStyles,
     settings: { ...settings, ...additions },
@@ -348,7 +386,7 @@ function migrateProject(value: unknown): unknown {
 
 export function loadProject(): Project {
   try {
-    const stored = globalThis.localStorage.getItem(STORAGE_KEY);
+    const stored = globalThis.localStorage.getItem(LEGACY_STORAGE_KEY);
     if (stored === null) return createDefaultProject();
 
     const project = migrateProject(JSON.parse(stored));
@@ -363,8 +401,97 @@ export function loadProject(): Project {
 export function saveProject(project: Project): void {
   try {
     const projectToSave = isProject(project) ? project : createDefaultProject();
-    globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(projectToSave));
+    globalThis.localStorage.setItem(
+      LEGACY_STORAGE_KEY,
+      JSON.stringify(projectToSave),
+    );
   } catch {
     // Storage can be unavailable in private browsing or restricted contexts.
   }
+}
+
+export function loadLibrary(): LibraryData {
+  try {
+    const storedLibrary =
+      globalThis.localStorage.getItem(LIBRARY_STORAGE_KEY);
+    if (storedLibrary !== null) {
+      const parsed: unknown = JSON.parse(storedLibrary);
+      if (isRecord(parsed) && typeof parsed.userName === "string") {
+        const projects = Array.isArray(parsed.projects)
+          ? parsed.projects
+              .map(migrateProject)
+              .filter(isProject)
+              .map(sanitizeProject)
+          : [];
+        if (projects.length > 0) {
+          return { userName: parsed.userName, projects };
+        }
+
+        const library = createDefaultLibrary();
+        globalThis.localStorage.setItem(
+          LIBRARY_STORAGE_KEY,
+          JSON.stringify(library),
+        );
+        return library;
+      }
+    }
+
+    const legacyProjectData =
+      globalThis.localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (legacyProjectData !== null) {
+      const migrated = migrateProject(JSON.parse(legacyProjectData));
+      if (isProject(migrated)) {
+        const library = {
+          userName: DEFAULT_USER_NAME,
+          projects: [sanitizeProject(migrated)],
+        };
+        globalThis.localStorage.setItem(
+          LIBRARY_STORAGE_KEY,
+          JSON.stringify(library),
+        );
+        return library;
+      }
+    }
+
+    const library = createDefaultLibrary();
+    globalThis.localStorage.setItem(
+      LIBRARY_STORAGE_KEY,
+      JSON.stringify(library),
+    );
+    return library;
+  } catch {
+    return createDefaultLibrary();
+  }
+}
+
+export function saveProjectToLibrary(project: Project): LibraryData {
+  const library = loadLibrary();
+  const existingIndex = library.projects.findIndex(
+    ({ id }) => id === project.id,
+  );
+  const existingProject =
+    existingIndex < 0 ? undefined : library.projects[existingIndex];
+  project.updatedAt = Math.max(
+    Date.now(),
+    (existingProject?.updatedAt ?? project.updatedAt) + 1,
+  );
+  if (existingIndex < 0) {
+    library.projects.push(project);
+  } else {
+    library.projects[existingIndex] = project;
+  }
+  globalThis.localStorage.setItem(
+    LIBRARY_STORAGE_KEY,
+    JSON.stringify(library),
+  );
+  return library;
+}
+
+export function saveUserName(name: string): void {
+  const library = loadLibrary();
+  library.userName = name;
+  globalThis.localStorage.setItem(
+    LIBRARY_STORAGE_KEY,
+    JSON.stringify(library),
+  );
 }

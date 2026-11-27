@@ -4,12 +4,16 @@ import {
   createDefaultProject,
   getEffectiveStyle,
   isSceneStyleCustomized,
+  loadLibrary,
   loadProject,
   restoreSceneStyle,
   saveProject,
+  saveProjectToLibrary,
+  saveUserName,
 } from "../../src/state";
 
 const STORAGE_KEY = "lyricmotion:projeto:v1";
+const LIBRARY_STORAGE_KEY = "lyricmotion:biblioteca:v1";
 
 function stubStorage(initial: Record<string, string> = {}) {
   const data = new Map(Object.entries(initial));
@@ -23,6 +27,7 @@ function stubStorage(initial: Record<string, string> = {}) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("project state", () => {
@@ -105,7 +110,10 @@ describe("project state", () => {
     };
     stubStorage({ [STORAGE_KEY]: JSON.stringify(invalidProject) });
 
-    expect(loadProject()).toEqual(createDefaultProject());
+    expect(loadProject()).toMatchObject({
+      version: 1,
+      settings: { themeId: "aurora" },
+    });
   });
 
   it("defaults color inversion to off for projects saved before the option existed", () => {
@@ -217,12 +225,18 @@ describe("project state", () => {
     const project = createDefaultProject();
     project.settings.fontSize = 201;
     stubStorage({ [STORAGE_KEY]: JSON.stringify(project) });
-    expect(loadProject()).toEqual(createDefaultProject());
+    expect(loadProject()).toMatchObject({
+      version: 1,
+      settings: { fontSize: 100, highlightFontSize: 115 },
+    });
 
     project.settings.fontSize = 100;
     project.settings.highlightFontSize = 251;
     stubStorage({ [STORAGE_KEY]: JSON.stringify(project) });
-    expect(loadProject()).toEqual(createDefaultProject());
+    expect(loadProject()).toMatchObject({
+      version: 1,
+      settings: { fontSize: 100, highlightFontSize: 115 },
+    });
   });
 
   it("limits migrated animation durations to the saved scene duration", () => {
@@ -261,13 +275,21 @@ describe("project state", () => {
   it("returns the default project when stored data is corrupt", () => {
     stubStorage({ [STORAGE_KEY]: "{not valid json" });
 
-    expect(loadProject()).toEqual(createDefaultProject());
+    expect(loadProject()).toMatchObject({
+      version: 1,
+      title: "",
+      settings: { themeId: "aurora" },
+    });
   });
 
   it("returns the default project when stored data has an invalid shape", () => {
     stubStorage({ [STORAGE_KEY]: JSON.stringify({ version: 2 }) });
 
-    expect(loadProject()).toEqual(createDefaultProject());
+    expect(loadProject()).toMatchObject({
+      version: 1,
+      title: "",
+      settings: { themeId: "aurora" },
+    });
   });
 
   it("loads projects using fonts introduced by the new themes", () => {
@@ -284,7 +306,11 @@ describe("project state", () => {
     invalidProject.settings.themeId = "unknown";
     stubStorage({ [STORAGE_KEY]: JSON.stringify(invalidProject) });
 
-    expect(loadProject()).toEqual(createDefaultProject());
+    expect(loadProject()).toMatchObject({
+      version: 1,
+      title: "",
+      settings: { themeId: "aurora" },
+    });
   });
 
   it("uses six seconds per scene by default", () => {
@@ -295,5 +321,76 @@ describe("project state", () => {
     const { settings } = createDefaultProject();
     expect(settings.fontSize).toBe(100);
     expect(settings.highlightFontSize).toBe(115);
+  });
+
+  it("creates a default library with the sample song when storage is empty", () => {
+    const { data } = stubStorage();
+    const library = loadLibrary();
+
+    expect(library.userName).toBe("Equipe de Mídia");
+    expect(library.projects).toHaveLength(1);
+    expect(library.projects[0].lyrics).toContain("Tu és fiel");
+    expect(data.get(LIBRARY_STORAGE_KEY)).toBe(JSON.stringify(library));
+  });
+
+  it("saves multiple projects and replaces a project with the same id", () => {
+    const { data } = stubStorage();
+    const library = loadLibrary();
+    const first = library.projects[0];
+    first.title = "Música um";
+    saveProjectToLibrary(first);
+
+    const second = createDefaultProject();
+    second.title = "Música dois";
+    saveProjectToLibrary(second);
+
+    const replacement = { ...first, title: "Música um atualizada" };
+    vi.spyOn(Date, "now").mockReturnValue(first.updatedAt + 100);
+    const updatedLibrary = saveProjectToLibrary(replacement);
+
+    expect(updatedLibrary.projects).toHaveLength(2);
+    expect(
+      updatedLibrary.projects.find(({ id }) => id === first.id)?.title,
+    ).toBe("Música um atualizada");
+    expect(replacement.updatedAt).toBe(first.updatedAt + 100);
+    expect(JSON.parse(data.get(LIBRARY_STORAGE_KEY) ?? "{}")).toEqual(
+      updatedLibrary,
+    );
+    expect(loadLibrary()).toEqual(updatedLibrary);
+  });
+
+  it("migrates the existing single project into the library with an id and timestamp", () => {
+    const project = createDefaultProject();
+    project.title = "Projeto legado";
+    const {
+      id: _id,
+      updatedAt: _updatedAt,
+      ...legacyProject
+    } = project;
+    const { data } = stubStorage({
+      [STORAGE_KEY]: JSON.stringify(legacyProject),
+    });
+
+    const library = loadLibrary();
+
+    expect(library.projects).toHaveLength(1);
+    expect(library.projects[0]).toMatchObject({
+      title: "Projeto legado",
+      lyrics: project.lyrics,
+    });
+    expect(library.projects[0].id).toBeTruthy();
+    expect(library.projects[0].updatedAt).toEqual(expect.any(Number));
+    expect(data.get(LIBRARY_STORAGE_KEY)).toBe(JSON.stringify(library));
+  });
+
+  it("saves a user name without dropping saved projects", () => {
+    const { data } = stubStorage();
+    const library = loadLibrary();
+    saveUserName("Ana");
+
+    expect(JSON.parse(data.get(LIBRARY_STORAGE_KEY) ?? "{}")).toEqual({
+      userName: "Ana",
+      projects: library.projects,
+    });
   });
 });

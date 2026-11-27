@@ -103,11 +103,18 @@ export interface Settings extends Omit<SceneStyle, "anim"> {
 
 export interface Project {
   version: 1;
+  id: string;
+  updatedAt: number;
   title: string;
   includeTitleScene: boolean;
   lyrics: string;
   settings: Settings;
   sceneStyles: Record<number, Partial<SceneStyle>>;
+}
+
+export interface LibraryData {
+  userName: string;
+  projects: Project[];
 }
 
 export interface Theme {
