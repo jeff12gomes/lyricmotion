@@ -1351,6 +1351,11 @@ textarea:focus-visible {
     linear-gradient(135deg, var(--theme-a), var(--theme-b) 60%, var(--theme-c));
   background-size: 180% 180%;
   animation: theme-preview-drift 14s ease-in-out infinite alternate;
+  animation-play-state: paused;
+}
+
+.theme:hover::before {
+  animation-play-state: running;
 }
 
 .theme::after {

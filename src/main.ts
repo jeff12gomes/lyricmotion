@@ -117,6 +117,7 @@ async function startPreview(
   const videoList = getElement<HTMLOListElement>("#sceneVideos");
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Não foi possível iniciar o canvas 2D.");
+  const renderContext = ctx;
 
   const player = new PlaybackClock();
   let scenes = buildScenes(project);
@@ -135,6 +136,7 @@ async function startPreview(
   let seeking = false;
   let previewStarted = false;
   let lastUiUpdate = 0;
+  let framePending = false;
   let exportInProgress = false;
   let generatedVideos: GeneratedVideo[] = [];
   let batch: {
@@ -166,6 +168,15 @@ async function startPreview(
     live: null,
   };
   const live = new LiveMode(player, () => scenes.length);
+
+  function requestFrame(): void {
+    if (editorView.hidden || framePending) return;
+    framePending = true;
+    requestAnimationFrame((timestamp) => {
+      framePending = false;
+      frame(timestamp);
+    });
+  }
 
   function markUnsavedChanges(): void {
     hasUnsavedChanges = true;
@@ -209,6 +220,7 @@ async function startPreview(
     );
     stylePanel?.syncSceneStyle();
     updatePlaybackControls();
+    requestFrame();
   }
 
   stylePanel = mountPanels(
@@ -216,6 +228,7 @@ async function startPreview(
     updateProject,
     (logo) => {
       renderState.logo = logo;
+      requestFrame();
     },
     () => selectedSceneIndex,
     markUnsavedChanges,
@@ -303,6 +316,7 @@ async function startPreview(
     previewStarted = true;
     player.play();
     updateSceneList();
+    requestFrame();
   }
 
   function downloadIndividual(index: number): void {
@@ -355,6 +369,7 @@ async function startPreview(
     saveButton.hidden = true;
     exportStatus.textContent = "Gravação cancelada.";
     resetExportUi();
+    requestFrame();
   }
 
   function failBatch(currentBatch: NonNullable<typeof batch>, error: Error): void {
@@ -366,6 +381,7 @@ async function startPreview(
     saveButton.hidden = true;
     exportStatus.textContent = error.message;
     resetExportUi();
+    requestFrame();
   }
 
   function startRecording(
@@ -404,6 +420,7 @@ async function startPreview(
       downloadZip: downloadZipAfter,
     };
     exportStatus.textContent = `Gravando vídeo 1 de ${sceneIndexes.length}…`;
+    requestFrame();
   }
 
   if (document.fonts) {
@@ -425,11 +442,13 @@ async function startPreview(
     if (live.isActive) return;
     if (player.isPlaying) {
       player.pause();
+      requestFrame();
       return;
     }
     previewStarted = true;
     if (player.now() >= project.settings.secondsPerScene) player.seek(0);
     player.play();
+    requestFrame();
   };
 
   playButton.addEventListener("click", () => {
@@ -438,6 +457,7 @@ async function startPreview(
   seek.addEventListener("input", () => {
     previewStarted = true;
     player.seek((Number(seek.value) / 1000) * project.settings.secondsPerScene);
+    requestFrame();
   });
   seek.addEventListener("pointerdown", () => {
     seeking = true;
@@ -504,21 +524,31 @@ async function startPreview(
     } catch {
       status.textContent = "Não foi possível sair da tela cheia.";
     }
+    requestFrame();
   };
 
   liveButton.addEventListener("click", () => {
     screenWrap.classList.add("live");
     liveBar.hidden = false;
-    void live.start(screenWrap).catch((error: unknown) => {
-      hideLiveControls();
-      status.textContent =
-        error instanceof Error
-          ? error.message
-          : "Não foi possível iniciar o modo ao vivo.";
-    });
+    void live.start(screenWrap)
+      .then(requestFrame)
+      .catch((error: unknown) => {
+        hideLiveControls();
+        status.textContent =
+          error instanceof Error
+            ? error.message
+            : "Não foi possível iniciar o modo ao vivo.";
+        requestFrame();
+      });
   });
-  previousButton.addEventListener("click", () => live.previous());
-  nextButton.addEventListener("click", () => live.next());
+  previousButton.addEventListener("click", () => {
+    live.previous();
+    requestFrame();
+  });
+  nextButton.addEventListener("click", () => {
+    live.next();
+    requestFrame();
+  });
   exitLiveButton.addEventListener("click", () => {
     void exitLive();
   });
@@ -574,7 +604,7 @@ async function startPreview(
     togglePlayback();
   });
 
-  const frame = (timestamp: number) => {
+  function frame(timestamp: number): void {
     if (editorView.hidden) return;
     let time = player.now();
     const sceneDuration = project.settings.secondsPerScene;
@@ -595,7 +625,7 @@ async function startPreview(
                 currentBatch.duration,
                 Math.max(0, (timestamp - currentBatch.startedAt) / 1000),
               );
-        render(ctx, elapsed, {
+        render(renderContext, elapsed, {
           ...renderState,
           scenes: [scene],
           times: [0],
@@ -644,6 +674,7 @@ async function startPreview(
                 } else if (currentBatch.downloadZip) {
                   void downloadZip();
                 }
+                requestFrame();
                 return;
               }
               currentBatch.recorder = null;
@@ -675,13 +706,14 @@ async function startPreview(
     } else if (live.isActive) {
       renderState.playing = false;
       renderState.live = live.renderState;
-      render(ctx, time, renderState);
+      render(renderContext, time, renderState);
     } else {
-      render(ctx, time, {
+      render(renderContext, time, {
         ...renderState,
         scenes: scenes[selectedSceneIndex] ? [scenes[selectedSceneIndex]] : [],
         times: [0],
         sceneIndexes: [selectedSceneIndex],
+        backgroundTime: (times[selectedSceneIndex] ?? 0) + time,
         playing: player.isPlaying,
         pausedTime: previewStarted ? time : undefined,
         live: null,
@@ -726,12 +758,12 @@ async function startPreview(
         }
       }
     }
-    if (!editorView.hidden) requestAnimationFrame(frame);
-  };
+    if (player.isPlaying || live.isActive || batch !== null) requestFrame();
+  }
 
   updatePlaybackControls();
   updateSceneList();
-  if (!editorView.hidden) requestAnimationFrame(frame);
+  requestFrame();
 }
 
 function boot(): void {
