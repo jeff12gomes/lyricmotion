@@ -30,6 +30,9 @@ describe("project state", () => {
     project.settings.highlightFont = "Great Vibes";
     project.settings.fontSize = 75;
     project.settings.highlightFontSize = 160;
+    project.settings.highlightAnim = "quicar";
+    project.settings.animDuration = 2.5;
+    project.settings.highlightAnimDuration = 1.7;
 
     saveProject(project);
 
@@ -54,8 +57,22 @@ describe("project state", () => {
     const {
       fontSize: _fontSize,
       highlightFontSize: _highlightFontSize,
+      animDuration: _animDuration,
+      highlightAnimDuration: _highlightAnimDuration,
       ...legacySettings
     } = project.settings;
+    stubStorage({
+      [STORAGE_KEY]: JSON.stringify({ ...project, settings: legacySettings }),
+    });
+
+    expect(loadProject()).toEqual(project);
+  });
+
+  it("uses the main animation for highlights saved before a second animation existed", () => {
+    const project = createDefaultProject();
+    project.settings.animation = "expandir";
+    project.settings.highlightAnim = "expandir";
+    const { highlightAnim: _highlightAnim, ...legacySettings } = project.settings;
     stubStorage({
       [STORAGE_KEY]: JSON.stringify({ ...project, settings: legacySettings }),
     });
@@ -73,6 +90,39 @@ describe("project state", () => {
     project.settings.highlightFontSize = 251;
     stubStorage({ [STORAGE_KEY]: JSON.stringify(project) });
     expect(loadProject()).toEqual(createDefaultProject());
+  });
+
+  it("limits migrated animation durations to the saved scene duration", () => {
+    const project = createDefaultProject();
+    project.settings.secondsPerScene = 2;
+    project.settings.animDuration = 0.8;
+    project.settings.highlightAnimDuration = 1;
+    const legacyProject = {
+      ...project,
+      settings: {
+        ...project.settings,
+        animDuration: 5,
+        highlightAnimDuration: 6,
+      },
+    };
+    stubStorage({ [STORAGE_KEY]: JSON.stringify(legacyProject) });
+
+    expect(loadProject().settings.animDuration).toBe(2);
+    expect(loadProject().settings.highlightAnimDuration).toBe(2);
+  });
+
+  it("clamps animation durations to their supported minimum and scene maximum", () => {
+    const project = createDefaultProject();
+    project.settings.animDuration = 0.1;
+    stubStorage({ [STORAGE_KEY]: JSON.stringify(project) });
+    expect(loadProject().settings.animDuration).toBe(0.2);
+
+    project.settings.animDuration = 0.8;
+    project.settings.highlightAnimDuration = 7;
+    stubStorage({ [STORAGE_KEY]: JSON.stringify(project) });
+    expect(loadProject().settings.highlightAnimDuration).toBe(
+      project.settings.secondsPerScene,
+    );
   });
 
   it("returns the default project when stored data is corrupt", () => {

@@ -41,9 +41,9 @@ export function render(
   if (sceneIndex >= 0 && scenes[sceneIndex]) {
     const elapsed = renderState.live
       ? time - renderState.live.sceneStart
-      : playing || renderState.pausedTime !== undefined
+      : playing
         ? (renderState.pausedTime ?? time) - (times[sceneIndex] ?? 0)
-        : 9;
+        : project.settings.secondsPerScene;
     const previousIndex =
       renderState.live?.previousIndex ?? sceneIndex - 1;
     if (previousIndex >= 0 && scenes[previousIndex] && elapsed < 0.35) {

@@ -1,4 +1,14 @@
-export type Animation = "subir" | "palavras" | "zoom";
+export type Animation =
+  | "subir"
+  | "palavras"
+  | "zoom"
+  | "surgir"
+  | "deslizar-esq"
+  | "deslizar-dir"
+  | "expandir"
+  | "quicar"
+  | "espacar"
+  | "cortina";
 export type Position = "centro" | "baixo";
 export type Resolution =
   | "1920x1080"
@@ -71,6 +81,9 @@ export interface Settings {
   fontSize: number;
   highlightFontSize: number;
   animation: Animation;
+  highlightAnim: Animation;
+  animDuration: number;
+  highlightAnimDuration: number;
   position: Position;
   inkColor: string;
   highlightColor: string;

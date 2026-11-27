@@ -16,7 +16,18 @@ const FONT_CATEGORIES = [
   "Underground",
   "Finas",
 ] as const;
-const ANIMATION_OPTIONS: Animation[] = ["subir", "palavras", "zoom"];
+const ANIMATION_OPTIONS: Array<{ value: Animation; label: string }> = [
+  { value: "subir", label: "Subir suave" },
+  { value: "palavras", label: "Palavra por palavra" },
+  { value: "zoom", label: "Aproximar" },
+  { value: "surgir", label: "Surgimento suave" },
+  { value: "deslizar-esq", label: "Deslizar da esquerda" },
+  { value: "deslizar-dir", label: "Deslizar da direita" },
+  { value: "expandir", label: "Expandir" },
+  { value: "quicar", label: "Quicar" },
+  { value: "espacar", label: "Espaçar letras" },
+  { value: "cortina", label: "Cortina de baixo para cima" },
+];
 const POSITION_OPTIONS: Position[] = ["centro", "baixo"];
 const RESOLUTION_OPTIONS: Resolution[] = [
   "1920x1080",
@@ -248,6 +259,12 @@ export function mountPanels(
   const highlightFontSizeOutput =
     getElement<HTMLOutputElement>("#highlightFontSizeValue");
   const animationSelect = getElement<HTMLSelectElement>("#anim");
+  const highlightAnimationSelect =
+    getElement<HTMLSelectElement>("#highlightAnim");
+  const animationDurationInput =
+    getElement<HTMLInputElement>("#animDuration");
+  const highlightAnimationDurationInput =
+    getElement<HTMLInputElement>("#highlightAnimDuration");
   const positionSelect = getElement<HTMLSelectElement>("#pos");
   const inkInput = getElement<HTMLInputElement>("#ink");
   const highlightInput = getElement<HTMLInputElement>("#hl");
@@ -260,10 +277,37 @@ export function mountPanels(
   const logoStatus = getElement<HTMLElement>("#logoStatus");
   let logoRequestId = 0;
 
+  for (const { value, label } of ANIMATION_OPTIONS) {
+    for (const select of [animationSelect, highlightAnimationSelect]) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      select.append(option);
+    }
+  }
+
   const commit = () => {
     saveProject(project);
     onProjectChange();
   };
+
+  function syncAnimationDurations(): void {
+    const max = project.settings.secondsPerScene;
+    animationDurationInput.max = String(max);
+    highlightAnimationDurationInput.max = String(max);
+    project.settings.animDuration = Math.min(
+      max,
+      Math.max(0.2, project.settings.animDuration),
+    );
+    project.settings.highlightAnimDuration = Math.min(
+      max,
+      Math.max(0.2, project.settings.highlightAnimDuration),
+    );
+    animationDurationInput.value = String(project.settings.animDuration);
+    highlightAnimationDurationInput.value = String(
+      project.settings.highlightAnimDuration,
+    );
+  }
 
   function updateThemeButtons(): void {
     for (const button of themeGrid.querySelectorAll<HTMLButtonElement>(".theme")) {
@@ -282,6 +326,8 @@ export function mountPanels(
     highlightFontSizeInput.value = String(project.settings.highlightFontSize);
     highlightFontSizeOutput.value = `${project.settings.highlightFontSize}%`;
     animationSelect.value = project.settings.animation;
+    highlightAnimationSelect.value = project.settings.highlightAnim;
+    syncAnimationDurations();
     positionSelect.value = project.settings.position;
     inkInput.value = project.settings.inkColor;
     highlightInput.value = project.settings.highlightColor;
@@ -338,6 +384,44 @@ export function mountPanels(
     project.lyrics = lyricsInput.value;
     commit();
   });
+  const updateAnimationDuration = (
+    input: HTMLInputElement,
+    setting: "animDuration" | "highlightAnimDuration",
+    normalize: boolean,
+  ) => {
+    const value = input.valueAsNumber;
+    if (!Number.isFinite(value)) {
+      if (normalize) input.value = String(project.settings[setting]);
+      return;
+    }
+    const rounded = Math.round(value * 10) / 10;
+    project.settings[setting] = Math.min(
+      project.settings.secondsPerScene,
+      Math.max(0.2, rounded),
+    );
+    input.value = String(project.settings[setting]);
+    commit();
+  };
+  animationDurationInput.addEventListener("input", () =>
+    updateAnimationDuration(animationDurationInput, "animDuration", false),
+  );
+  animationDurationInput.addEventListener("change", () =>
+    updateAnimationDuration(animationDurationInput, "animDuration", true),
+  );
+  highlightAnimationDurationInput.addEventListener("input", () =>
+    updateAnimationDuration(
+      highlightAnimationDurationInput,
+      "highlightAnimDuration",
+      false,
+    ),
+  );
+  highlightAnimationDurationInput.addEventListener("change", () =>
+    updateAnimationDuration(
+      highlightAnimationDurationInput,
+      "highlightAnimDuration",
+      true,
+    ),
+  );
   fontSizeInput.addEventListener("input", () => {
     const value = fontSizeInput.valueAsNumber;
     if (!Number.isFinite(value)) return;
@@ -366,11 +450,18 @@ export function mountPanels(
   });
 
   animationSelect.addEventListener("change", () => {
-    const animation = ANIMATION_OPTIONS.find(
-      (candidate) => candidate === animationSelect.value,
-    );
+    const animation = ANIMATION_OPTIONS.find(({ value }) => value === animationSelect.value)
+      ?.value;
     if (!animation) return;
     project.settings.animation = animation;
+    commit();
+  });
+  highlightAnimationSelect.addEventListener("change", () => {
+    const animation = ANIMATION_OPTIONS.find(
+      ({ value }) => value === highlightAnimationSelect.value,
+    )?.value;
+    if (!animation) return;
+    project.settings.highlightAnim = animation;
     commit();
   });
   positionSelect.addEventListener("change", () => {
@@ -411,6 +502,7 @@ export function mountPanels(
       secondsInput.value = String(seconds);
     }
     project.settings.secondsPerScene = seconds;
+    syncAnimationDurations();
     commit();
   };
   secondsInput.addEventListener("input", () => updateSeconds(false));
@@ -549,6 +641,7 @@ function applyTheme(project: Project, theme: Theme): void {
     fontSize: 100,
     highlightFontSize: FONT_CATALOG[theme.highlightFont].isCursive ? 120 : 100,
     animation: theme.anim,
+    highlightAnim: theme.anim,
     inkColor: theme.ink,
     highlightColor: theme.hl,
     uppercase: theme.up,

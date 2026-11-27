@@ -168,12 +168,36 @@
             Dica: coloque *asteriscos* em qualquer palavra da letra para aplicar
             a segunda fonte e a cor de destaque.
           </p>
-          <label for="anim">Animação</label>
-          <select id="anim">
-            <option value="subir">Subir suave</option>
-            <option value="palavras">Palavra por palavra</option>
-            <option value="zoom">Aproximar</option>
-          </select>
+          <div class="row">
+            <div>
+              <label for="anim">Animação principal</label>
+              <select id="anim"></select>
+              <label for="animDuration">Tempo da animação principal (s)</label>
+              <input
+                id="animDuration"
+                type="number"
+                min="0.2"
+                max="6"
+                step="0.1"
+                value="0.8"
+              />
+            </div>
+            <div>
+              <label for="highlightAnim">Animação do destaque (*palavra*)</label>
+              <select id="highlightAnim"></select>
+              <label for="highlightAnimDuration">
+                Tempo da animação do destaque (s)
+              </label>
+              <input
+                id="highlightAnimDuration"
+                type="number"
+                min="0.2"
+                max="6"
+                step="0.1"
+                value="1.0"
+              />
+            </div>
+          </div>
           <label for="pos">Posição do texto</label>
           <select id="pos">
             <option value="centro">Centro</option>

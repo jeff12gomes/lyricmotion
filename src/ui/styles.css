@@ -243,6 +243,10 @@ textarea:focus-visible {
   font: 16px "Manrope", sans-serif;
 }
 
+.card input[type="number"] {
+  margin-bottom: 4px;
+}
+
 .card textarea {
   min-height: 240px;
   resize: vertical;

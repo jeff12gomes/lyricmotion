@@ -20,7 +20,18 @@ const SAMPLE_LYRICS = [
   "Toda a *glória* é Tua",
 ].join("\n");
 
-const animations: Animation[] = ["subir", "palavras", "zoom"];
+const animations: Animation[] = [
+  "subir",
+  "palavras",
+  "zoom",
+  "surgir",
+  "deslizar-esq",
+  "deslizar-dir",
+  "expandir",
+  "quicar",
+  "espacar",
+  "cortina",
+];
 const positions: Position[] = ["centro", "baixo"];
 const fonts: FontFamily[] = Object.values(FONT_CATALOG).map(({ name }) => name);
 const resolutions: Resolution[] = [
@@ -42,6 +53,9 @@ export function createDefaultProject(): Project {
       fontSize: 100,
       highlightFontSize: 115,
       animation: "subir",
+      highlightAnim: "quicar",
+      animDuration: 0.8,
+      highlightAnimDuration: 1.0,
       position: "centro",
       inkColor: "#ffffff",
       highlightColor: "#ffd166",
@@ -70,6 +84,10 @@ function isSettings(value: unknown): value is Settings {
   return (
     typeof value.themeId === "string" &&
     THEMES.some((theme) => theme.id === value.themeId) &&
+    typeof value.secondsPerScene === "number" &&
+    Number.isFinite(value.secondsPerScene) &&
+    value.secondsPerScene >= 2 &&
+    value.secondsPerScene <= 30 &&
     isOneOf(value.font, fonts) &&
     isOneOf(value.highlightFont, fonts) &&
     typeof value.fontSize === "number" &&
@@ -81,15 +99,20 @@ function isSettings(value: unknown): value is Settings {
     value.highlightFontSize >= 50 &&
     value.highlightFontSize <= 250 &&
     isOneOf(value.animation, animations) &&
+    isOneOf(value.highlightAnim, animations) &&
+    typeof value.animDuration === "number" &&
+    Number.isFinite(value.animDuration) &&
+    value.animDuration >= 0.2 &&
+    value.animDuration <= value.secondsPerScene &&
+    typeof value.highlightAnimDuration === "number" &&
+    Number.isFinite(value.highlightAnimDuration) &&
+    value.highlightAnimDuration >= 0.2 &&
+    value.highlightAnimDuration <= value.secondsPerScene &&
     isOneOf(value.position, positions) &&
     typeof value.inkColor === "string" &&
     typeof value.highlightColor === "string" &&
     typeof value.uppercase === "boolean" &&
     typeof value.shadow === "boolean" &&
-    typeof value.secondsPerScene === "number" &&
-    Number.isFinite(value.secondsPerScene) &&
-    value.secondsPerScene >= 2 &&
-    value.secondsPerScene <= 30 &&
     isOneOf(value.resolution, resolutions)
   );
 }
@@ -117,6 +140,9 @@ function sanitizeProject(value: Project & Record<string, unknown>): Project {
       fontSize: settings.fontSize,
       highlightFontSize: settings.highlightFontSize,
       animation: settings.animation,
+      highlightAnim: settings.highlightAnim,
+      animDuration: settings.animDuration,
+      highlightAnimDuration: settings.highlightAnimDuration,
       position: settings.position,
       inkColor: settings.inkColor,
       highlightColor: settings.highlightColor,
@@ -133,13 +159,44 @@ function migrateProject(value: unknown): unknown {
   const settings = value.settings;
   const theme = THEMES.find(({ id }) => id === settings.themeId);
   const additions: Partial<
-    Pick<Settings, "highlightFont" | "fontSize" | "highlightFontSize">
+    Pick<
+      Settings,
+      | "highlightFont"
+      | "fontSize"
+      | "highlightFontSize"
+      | "highlightAnim"
+      | "animDuration"
+      | "highlightAnimDuration"
+    >
   > = {};
   if (!("highlightFont" in settings) && theme) {
     additions.highlightFont = theme.highlightFont;
   }
   if (!("fontSize" in settings)) additions.fontSize = 100;
   if (!("highlightFontSize" in settings)) additions.highlightFontSize = 115;
+  if (!("highlightAnim" in settings) && isOneOf(settings.animation, animations)) {
+    additions.highlightAnim = settings.animation;
+  }
+  const maxDuration =
+    typeof settings.secondsPerScene === "number" &&
+    Number.isFinite(settings.secondsPerScene)
+      ? settings.secondsPerScene
+      : Number.POSITIVE_INFINITY;
+  if (!("animDuration" in settings)) additions.animDuration = 0.8;
+  else if (typeof settings.animDuration === "number") {
+    additions.animDuration = Math.min(
+      maxDuration,
+      Math.max(0.2, settings.animDuration),
+    );
+  }
+  if (!("highlightAnimDuration" in settings)) {
+    additions.highlightAnimDuration = 1.0;
+  } else if (typeof settings.highlightAnimDuration === "number") {
+    additions.highlightAnimDuration = Math.min(
+      maxDuration,
+      Math.max(0.2, settings.highlightAnimDuration),
+    );
+  }
   if (Object.keys(additions).length === 0) return value;
 
   return {
