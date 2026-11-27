@@ -14,6 +14,10 @@
   </head>
   <body>
     <main id="app">
+      <section id="dashboardView" class="dashboard-view">
+        <p id="dashboardStatus" class="dashboard-status" role="status" aria-live="polite"></p>
+      </section>
+      <div id="editorView" hidden>
       <header class="music-header">
         <button id="backToLibrary" class="back-to-library" type="button">
           ← Músicas
@@ -301,6 +305,7 @@
           <p id="status" class="status" role="status" aria-live="polite"></p>
         </section>
       </section>
+      </div>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>

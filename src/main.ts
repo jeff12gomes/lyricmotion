@@ -11,6 +11,7 @@ import {
   loadLibrary,
   saveProjectToLibrary,
 } from "./state";
+import { mountDashboard } from "./ui/dashboard";
 import {
   mountPanels,
   renderSceneVideos,
@@ -33,8 +34,12 @@ function formatTime(seconds: number): string {
   return `${minutes}:${String(wholeSeconds % 60).padStart(2, "0")}`;
 }
 
-async function startPreview(): Promise<void> {
+async function startPreview(
+  project: ReturnType<typeof createDefaultProject>,
+  onBackToDashboard: () => void,
+): Promise<void> {
   const screenWrap = getElement<HTMLDivElement>("#screenWrap");
+  const editorView = getElement<HTMLElement>("#editorView");
   const canvas = getElement<HTMLCanvasElement>("#screen");
   const playButton = getElement<HTMLButtonElement>("#play");
   const seek = getElement<HTMLInputElement>("#seek");
@@ -59,7 +64,6 @@ async function startPreview(): Promise<void> {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Não foi possível iniciar o canvas 2D.");
 
-  const project = loadLibrary().projects[0] ?? createDefaultProject();
   const player = new PlaybackClock();
   let scenes = buildScenes(project);
   let times = buildTimes(scenes, project).times;
@@ -427,11 +431,11 @@ async function startPreview(): Promise<void> {
     }
   });
   backToLibraryButton.addEventListener("click", () => {
-    window.dispatchEvent(
-      new CustomEvent("lyricmotion:navigate", {
-        detail: { screen: "dashboard" },
-      }),
-    );
+    player.pause();
+    if (live.isActive) void live.stop();
+    hideLiveControls();
+    renderState.live = null;
+    onBackToDashboard();
   });
 
   const hideLiveControls = () => {
@@ -474,6 +478,7 @@ async function startPreview(): Promise<void> {
   });
 
   document.addEventListener("keydown", (event) => {
+    if (editorView.hidden) return;
     if (exportInProgress) {
       if (event.key === " ") event.preventDefault();
       return;
@@ -671,4 +676,64 @@ async function startPreview(): Promise<void> {
   requestAnimationFrame(frame);
 }
 
-void startPreview();
+function openProject(projectId: string): void {
+  window.location.hash = `editor/${encodeURIComponent(projectId)}`;
+  window.location.reload();
+}
+
+function startNewProject(): void {
+  try {
+    const project = createDefaultProject();
+    project.title = "";
+    project.lyrics = "";
+    const library = saveProjectToLibrary(project);
+    const newProject = library.projects.find(({ id }) => id === project.id);
+    if (!newProject) {
+      getElement<HTMLElement>("#dashboardStatus").textContent =
+        "Não foi possível criar a música.";
+      return;
+    }
+    openProject(newProject.id);
+  } catch {
+    getElement<HTMLElement>("#dashboardStatus").textContent =
+      "Não foi possível criar a música neste navegador.";
+  }
+}
+
+function boot(): void {
+  const dashboardView = getElement<HTMLElement>("#dashboardView");
+  const editorView = getElement<HTMLElement>("#editorView");
+  const dashboard = mountDashboard(dashboardView, {
+    onOpenProject: openProject,
+    onCreateProject: startNewProject,
+  });
+  const routeMatch = window.location.hash.match(/^#editor\/(.+)$/);
+  let projectId: string | null = null;
+  try {
+    projectId = routeMatch ? decodeURIComponent(routeMatch[1]) : null;
+  } catch {
+    projectId = null;
+  }
+  const project = projectId
+    ? loadLibrary().projects.find(({ id }) => id === projectId)
+    : undefined;
+
+  if (!project) {
+    dashboardView.hidden = false;
+    editorView.hidden = true;
+    window.location.hash = "";
+    return;
+  }
+
+  dashboardView.hidden = true;
+  editorView.hidden = false;
+  void startPreview(project, () => {
+    dashboardView.hidden = false;
+    editorView.hidden = true;
+    window.location.hash = "";
+    dashboard.refresh();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+}
+
+boot();
