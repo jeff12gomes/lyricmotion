@@ -6,6 +6,7 @@ import type {
   Position,
   Project,
   Resolution,
+  Scene,
   Theme,
 } from "../types";
 
@@ -293,6 +294,51 @@ export function mountPanels(
     }
   } catch {
     logoStatus.textContent = "Não foi possível restaurar o logo salvo.";
+  }
+}
+
+export interface GeneratedVideo {
+  sceneIndex: number;
+  filename: string;
+  sceneText: string;
+  blob: Blob;
+}
+
+export function renderSceneVideos(
+  container: HTMLElement,
+  scenes: Scene[],
+  selectedIndex: number,
+  videos: GeneratedVideo[],
+  onSelect: (index: number) => void,
+  onDownload: (index: number) => void,
+): void {
+  container.replaceChildren();
+  for (const [index, scene] of scenes.entries()) {
+    const item = document.createElement("li");
+    const selectButton = document.createElement("button");
+    const snippet = scene.text.split(/\s+/).slice(0, 8).join(" ");
+    const downloadButton = document.createElement("button");
+    const video = videos.find((candidate) => candidate.sceneIndex === index);
+
+    selectButton.type = "button";
+    selectButton.className = "scene-select";
+    selectButton.setAttribute("aria-pressed", String(index === selectedIndex));
+    selectButton.setAttribute("aria-label", `Selecionar cena ${index + 1}: ${snippet}`);
+    const description = document.createElement("span");
+    description.textContent = `${String(index + 1).padStart(2, "0")} · ${snippet}`;
+    selectButton.append(description);
+    selectButton.addEventListener("click", () => onSelect(index));
+
+    downloadButton.type = "button";
+    downloadButton.className = "scene-download";
+    downloadButton.textContent = "Baixar";
+    downloadButton.setAttribute(
+      "aria-label",
+      video ? `Baixar ${video.filename}` : `Gerar vídeo da cena ${index + 1}`,
+    );
+    downloadButton.addEventListener("click", () => onDownload(index));
+    item.append(selectButton, downloadButton);
+    container.append(item);
   }
 }
 

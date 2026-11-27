@@ -14,31 +14,62 @@
   </head>
   <body>
     <main id="app">
-      <section class="stage" aria-label="Prévia do telão">
-        <div id="screenWrap" class="screen-wrap">
-          <canvas id="screen" width="1920" height="1080">
-            Seu navegador não oferece suporte a canvas.
-          </canvas>
-          <div id="liveBar" class="live-bar" hidden>
-            <button id="livePrev" type="button">◀ Anterior</button>
-            <span id="liveInfo" class="time"></span>
-            <button id="liveNext" type="button">Próxima ▶</button>
-            <button id="liveExit" type="button">Sair do ao vivo</button>
+      <section class="workspace" aria-label="Vídeos e prévia">
+        <section class="card videos-panel" aria-label="Vídeos">
+          <h2>VÍDEOS</h2>
+          <button id="exp" class="wide-button primary-button" type="button">
+            Gerar e baixar todos (.zip)
+          </button>
+          <button id="cancel" class="wide-button" type="button" hidden>
+            Cancelar gravação
+          </button>
+          <div
+            id="bar"
+            class="bar"
+            role="progressbar"
+            aria-label="Progresso da gravação"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            hidden
+          >
+            <i id="barFill"></i>
           </div>
-        </div>
-      </section>
-      <section class="transport" aria-label="Controles de reprodução">
-        <button id="play" type="button" aria-label="Tocar">▶</button>
-        <input
-          id="seek"
-          type="range"
-          min="0"
-          max="1000"
-          value="0"
-          aria-label="Posição da reprodução"
-        />
-        <span id="time" class="time">0:00 / 0:18</span>
-        <button id="goLive" type="button">Ao vivo (tela cheia)</button>
+          <p id="expStatus" class="status" role="status" aria-live="polite"></p>
+          <button id="save" class="wide-button primary-button" type="button" hidden>
+            Baixar todos (.zip)
+          </button>
+          <ol id="sceneVideos" class="scene-videos" aria-label="Cenas da música"></ol>
+        </section>
+        <section class="preview-panel" aria-label="Prévia do telão">
+          <h2>PREVIEW</h2>
+          <div class="stage">
+            <div id="screenWrap" class="screen-wrap">
+              <canvas id="screen" width="1920" height="1080">
+                Seu navegador não oferece suporte a canvas.
+              </canvas>
+              <div id="liveBar" class="live-bar" hidden>
+                <button id="livePrev" type="button">◀ Anterior</button>
+                <span id="liveInfo" class="time"></span>
+                <button id="liveNext" type="button">Próxima ▶</button>
+                <button id="liveExit" type="button">Sair do ao vivo</button>
+              </div>
+            </div>
+          </div>
+          <section class="transport" aria-label="Controles da prévia">
+            <button id="play" type="button" aria-label="Tocar">▶</button>
+            <input
+              id="seek"
+              type="range"
+              min="0"
+              max="1000"
+              value="0"
+              aria-label="Posição da cena"
+            />
+            <span id="time" class="time">0:00 / 0:06</span>
+            <button id="goLive" type="button">Ao vivo (tela cheia)</button>
+          </section>
+        </section>
       </section>
       <section class="panels" aria-label="Edição do projeto">
         <section class="card c1">
@@ -55,7 +86,7 @@
         </section>
 
         <section class="card">
-          <h2>Estilo</h2>
+          <h2>Estilo e Tamanho</h2>
           <div id="themes" class="themes" aria-label="Temas"></div>
           <div class="row">
             <div>
@@ -95,10 +126,6 @@
             Remover logo
           </button>
           <p id="logoStatus" class="status" role="status" aria-live="polite"></p>
-        </section>
-
-        <section class="card">
-          <h2>Tempo e exportação</h2>
           <label for="dur">Segundos por cena</label>
           <input
             id="dur"
@@ -108,37 +135,14 @@
             step="0.5"
             value="6"
           />
-          <p id="status" class="status" role="status" aria-live="polite"></p>
-          <h3>Exportar vídeo</h3>
-          <label for="res">Tamanho</label>
+          <label for="res">Tamanho do vídeo</label>
           <select id="res">
             <option value="1920x1080">Full HD 16:9 (1920×1080)</option>
             <option value="1280x720">HD leve (1280×720)</option>
             <option value="2560x720">Painel LED largo 32:9 (2560×720)</option>
             <option value="1080x1920">Vertical 9:16 (1080×1920)</option>
           </select>
-          <button id="exp" class="wide-button primary-button" type="button">
-            Gravar vídeo
-          </button>
-          <button id="cancel" class="wide-button" type="button" hidden>
-            Cancelar gravação
-          </button>
-          <div
-            id="bar"
-            class="bar"
-            role="progressbar"
-            aria-label="Progresso da gravação"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-valuenow="0"
-            hidden
-          >
-            <i id="barFill"></i>
-          </div>
-          <p id="expStatus" class="status" role="status" aria-live="polite"></p>
-          <button id="save" class="wide-button" type="button" hidden>
-            Salvar vídeo
-          </button>
+          <p id="status" class="status" role="status" aria-live="polite"></p>
         </section>
       </section>
     </main>

@@ -8,6 +8,7 @@ export interface RenderState {
   scenes: Scene[];
   times: number[];
   playing: boolean;
+  pausedTime?: number;
   logo: HTMLImageElement | null;
   live: {
     sceneIndex: number;
@@ -40,8 +41,8 @@ export function render(
   if (sceneIndex >= 0 && scenes[sceneIndex]) {
     const elapsed = renderState.live
       ? time - renderState.live.sceneStart
-      : playing
-        ? time - (times[sceneIndex] ?? 0)
+      : playing || renderState.pausedTime !== undefined
+        ? (renderState.pausedTime ?? time) - (times[sceneIndex] ?? 0)
         : 9;
     const previousIndex =
       renderState.live?.previousIndex ?? sceneIndex - 1;
