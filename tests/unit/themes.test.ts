@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ANIMATED_BACKGROUND_TYPES } from "../../src/render/backgrounds";
 import { FONT_CATALOG, THEMES } from "../../src/render/themes";
 
 describe("theme library", () => {
@@ -30,6 +31,13 @@ describe("theme library", () => {
       ]),
     );
     expect(THEMES.filter(({ bg }) => bg === "chapado")).toHaveLength(1);
+    const themeBackgrounds = new Set(THEMES.map(({ bg }) => bg));
+    expect(themeBackgrounds).toEqual(
+      new Set([...ANIMATED_BACKGROUND_TYPES, "chapado"]),
+    );
+    expect(
+      THEMES.filter(({ bg }) => bg === "chapado").map(({ id }) => id),
+    ).toEqual(["chroma"]);
   });
 
   it("configures Glória Azul with its cloud palette, fonts, and animations", () => {

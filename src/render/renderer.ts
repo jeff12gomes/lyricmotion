@@ -9,6 +9,7 @@ export interface RenderState {
   scenes: Scene[];
   sceneIndexes?: number[];
   times: number[];
+  backgroundTime?: number;
   playing: boolean;
   pausedTime?: number;
   logo: HTMLImageElement | null;
@@ -60,7 +61,7 @@ export function render(
     THEMES.find(({ id }) => id === activeProject.settings.themeId) ?? THEMES[0];
   drawBackground(
     ctx,
-    time,
+    renderState.backgroundTime ?? time,
     theme,
     activeProject.settings.invertColors,
   );

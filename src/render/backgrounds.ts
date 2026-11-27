@@ -1,5 +1,26 @@
-import type { Theme } from "../types";
+import type { Theme, ThemeBackground } from "../types";
 import { invertHex } from "./colors";
+
+export const ANIMATED_BACKGROUND_TYPES: readonly ThemeBackground[] = [
+  "aurora",
+  "raios",
+  "bokeh",
+  "estrelas",
+  "ondas",
+  "suave",
+  "seda",
+  "diagonal",
+  "bordas",
+  "liquido",
+  "feixes",
+  "carmim",
+  "nuvens-azuis",
+  "fumaca-carmim",
+  "feixes-brasa",
+  "respingos-tinta",
+  "seda-fogo",
+  "fumaca-prata",
+];
 
 interface Particle {
   x: number;

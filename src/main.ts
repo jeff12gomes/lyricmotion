@@ -600,6 +600,9 @@ async function startPreview(
           scenes: [scene],
           times: [0],
           sceneIndexes: [currentBatch.sceneIndexes[currentBatch.index]],
+          backgroundTime:
+            (times[currentBatch.sceneIndexes[currentBatch.index]] ?? 0) +
+            elapsed,
           playing: true,
           live: null,
         });

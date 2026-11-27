@@ -75,6 +75,38 @@ describe("render playback state", () => {
     );
   });
 
+  it("uses the supplied continuous background timeline independently of text time", () => {
+    const state: RenderState = {
+      project: createDefaultProject(),
+      scenes: [{ text: "Uma frase" }],
+      times: [0],
+      backgroundTime: 12.5,
+      playing: true,
+      logo: null,
+      live: null,
+    };
+
+    render(
+      { canvas: { width: 1920, height: 1080 } } as CanvasRenderingContext2D,
+      0.5,
+      state,
+    );
+
+    expect(drawBackground).toHaveBeenCalledWith(
+      expect.anything(),
+      12.5,
+      expect.anything(),
+      false,
+    );
+    expect(drawText).toHaveBeenCalledWith(
+      expect.anything(),
+      state.scenes[0],
+      0.5,
+      1,
+      expect.anything(),
+    );
+  });
+
   it("renders a selected scene using its effective style", () => {
     const project = createDefaultProject();
     project.sceneStyles[1] = {
