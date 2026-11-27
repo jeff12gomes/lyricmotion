@@ -1,4 +1,4 @@
-import { THEMES } from "./render/themes";
+import { FONT_CATALOG, THEMES } from "./render/themes";
 import type {
   Animation,
   FontFamily,
@@ -22,18 +22,7 @@ const SAMPLE_LYRICS = [
 
 const animations: Animation[] = ["subir", "palavras", "zoom"];
 const positions: Position[] = ["centro", "baixo"];
-const fonts: FontFamily[] = [
-  "Montserrat",
-  "Poppins",
-  "Playfair Display",
-  "Lora",
-  "Bebas Neue",
-  "Anton",
-  "Oswald",
-  "Dancing Script",
-  "Great Vibes",
-  "Caveat",
-];
+const fonts: FontFamily[] = Object.values(FONT_CATALOG).map(({ name }) => name);
 const resolutions: Resolution[] = [
   "1920x1080",
   "1280x720",
@@ -50,6 +39,8 @@ export function createDefaultProject(): Project {
       themeId: "aurora",
       font: "Montserrat",
       highlightFont: "Poppins",
+      fontSize: 100,
+      highlightFontSize: 115,
       animation: "subir",
       position: "centro",
       inkColor: "#ffffff",
@@ -81,6 +72,14 @@ function isSettings(value: unknown): value is Settings {
     THEMES.some((theme) => theme.id === value.themeId) &&
     isOneOf(value.font, fonts) &&
     isOneOf(value.highlightFont, fonts) &&
+    typeof value.fontSize === "number" &&
+    Number.isFinite(value.fontSize) &&
+    value.fontSize >= 50 &&
+    value.fontSize <= 200 &&
+    typeof value.highlightFontSize === "number" &&
+    Number.isFinite(value.highlightFontSize) &&
+    value.highlightFontSize >= 50 &&
+    value.highlightFontSize <= 250 &&
     isOneOf(value.animation, animations) &&
     isOneOf(value.position, positions) &&
     typeof value.inkColor === "string" &&
@@ -115,6 +114,8 @@ function sanitizeProject(value: Project & Record<string, unknown>): Project {
       themeId: settings.themeId,
       font: settings.font,
       highlightFont: settings.highlightFont,
+      fontSize: settings.fontSize,
+      highlightFontSize: settings.highlightFontSize,
       animation: settings.animation,
       position: settings.position,
       inkColor: settings.inkColor,
@@ -130,14 +131,20 @@ function sanitizeProject(value: Project & Record<string, unknown>): Project {
 function migrateProject(value: unknown): unknown {
   if (!isRecord(value) || !isRecord(value.settings)) return value;
   const settings = value.settings;
-  if ("highlightFont" in settings) return value;
-
   const theme = THEMES.find(({ id }) => id === settings.themeId);
-  if (!theme) return value;
+  const additions: Partial<
+    Pick<Settings, "highlightFont" | "fontSize" | "highlightFontSize">
+  > = {};
+  if (!("highlightFont" in settings) && theme) {
+    additions.highlightFont = theme.highlightFont;
+  }
+  if (!("fontSize" in settings)) additions.fontSize = 100;
+  if (!("highlightFontSize" in settings)) additions.highlightFontSize = 115;
+  if (Object.keys(additions).length === 0) return value;
 
   return {
     ...value,
-    settings: { ...settings, highlightFont: theme.highlightFont },
+    settings: { ...settings, ...additions },
   };
 }
 

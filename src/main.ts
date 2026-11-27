@@ -3,7 +3,7 @@ import { PlaybackClock } from "./audio/player";
 import { VideoRecorder } from "./export/recorder";
 import { LiveMode } from "./live/live";
 import { render, type RenderState } from "./render/renderer";
-import { FONTS } from "./render/themes";
+import { FONT_CATALOG } from "./render/themes";
 import { buildScenes, buildTimes } from "./scenes";
 import { loadProject } from "./state";
 import {
@@ -321,7 +321,7 @@ async function startPreview(): Promise<void> {
     await document.fonts.ready;
     await Promise.all(
       [project.settings.font, project.settings.highlightFont].map((font) =>
-        document.fonts.load(`${FONTS[font]} 40px "${font}"`),
+        document.fonts.load(`${FONT_CATALOG[font].weight} 40px "${font}"`),
       ),
     );
   }

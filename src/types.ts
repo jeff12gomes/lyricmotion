@@ -6,16 +6,44 @@ export type Resolution =
   | "2560x720"
   | "1080x1920";
 export type FontFamily =
+  | "Alfa Slab One"
+  | "Allura"
   | "Anton"
+  | "Archivo Black"
+  | "Black Ops One"
   | "Caveat"
+  | "Chakra Petch"
+  | "Cinzel Decorative"
+  | "Cormorant Garamond"
   | "Dancing Script"
   | "Great Vibes"
+  | "Julius Sans One"
+  | "Josefin Sans"
+  | "Kaushan Script"
+  | "Outfit"
+  | "Pacifico"
+  | "Permanent Marker"
+  | "Raleway"
+  | "Righteous"
+  | "Rubik Glitch"
+  | "Russo One"
+  | "Satisfy"
+  | "Space Grotesk"
+  | "Syne"
   | "Montserrat"
   | "Oswald"
   | "Poppins"
   | "Playfair Display"
   | "Lora"
   | "Bebas Neue";
+export type FontCategory = "Manuscritas" | "Cheias" | "Underground" | "Finas";
+
+export interface FontOption {
+  name: FontFamily;
+  weight: number;
+  category: FontCategory;
+  isCursive: boolean;
+}
 export type ThemeBackground =
   | "aurora"
   | "raios"
@@ -40,6 +68,8 @@ export interface Settings {
   themeId: string;
   font: FontFamily;
   highlightFont: FontFamily;
+  fontSize: number;
+  highlightFontSize: number;
   animation: Animation;
   position: Position;
   inkColor: string;

@@ -1,8 +1,7 @@
 import { saveProject } from "../state";
-import { THEMES, FONTS } from "../render/themes";
+import { FONT_CATALOG, THEMES } from "../render/themes";
 import type {
   Animation,
-  FontFamily,
   Position,
   Project,
   Resolution,
@@ -11,18 +10,12 @@ import type {
 } from "../types";
 
 const LOGO_STORAGE_KEY = "lyricmotion:logo:v1";
-const FONT_OPTIONS: FontFamily[] = [
-  "Montserrat",
-  "Poppins",
-  "Playfair Display",
-  "Lora",
-  "Bebas Neue",
-  "Anton",
-  "Oswald",
-  "Dancing Script",
-  "Great Vibes",
-  "Caveat",
-];
+const FONT_CATEGORIES = [
+  "Cheias",
+  "Manuscritas",
+  "Underground",
+  "Finas",
+] as const;
 const ANIMATION_OPTIONS: Animation[] = ["subir", "palavras", "zoom"];
 const POSITION_OPTIONS: Position[] = ["centro", "baixo"];
 const RESOLUTION_OPTIONS: Resolution[] = [
@@ -70,6 +63,158 @@ function loadImage(source: string): Promise<HTMLImageElement> {
   });
 }
 
+function mountFontPicker(
+  root: HTMLElement,
+  setting: "font" | "highlightFont",
+  project: Project,
+  onSelect: () => void,
+): { sync: () => void } {
+  const trigger = root.querySelector<HTMLButtonElement>(".font-picker-trigger");
+  const listbox = root.querySelector<HTMLDivElement>('[role="listbox"]');
+  if (!trigger || !listbox) {
+    throw new Error("O seletor visual de fonte está incompleto.");
+  }
+  const pickerTrigger = trigger;
+  const pickerListbox = listbox;
+
+  const labels = {
+    font: "Fonte principal",
+    highlightFont: "Fonte do destaque",
+  };
+  const options = Object.values(FONT_CATALOG);
+
+  for (const category of FONT_CATEGORIES) {
+    const group = document.createElement("div");
+    group.className = "font-picker-group";
+    group.setAttribute("role", "group");
+    group.setAttribute("aria-label", category);
+
+    const heading = document.createElement("span");
+    heading.className = "font-picker-category";
+    heading.textContent = category;
+    group.append(heading);
+
+    for (const font of options.filter((option) => option.category === category)) {
+      const option = document.createElement("button");
+      const sample = document.createElement("span");
+      const name = document.createElement("span");
+      option.type = "button";
+      option.className = "font-picker-option";
+      option.dataset.fontName = font.name;
+      option.setAttribute("role", "option");
+      option.setAttribute("aria-selected", "false");
+      option.style.fontFamily = `"${font.name}", sans-serif`;
+      option.style.fontWeight = String(font.weight);
+      sample.className = "font-picker-sample";
+      sample.textContent = "TÃO Coração Glória! Bênção";
+      name.className = "font-picker-name";
+      name.textContent = font.name;
+      option.append(sample, name);
+      group.append(option);
+    }
+
+    pickerListbox.append(group);
+  }
+
+  function sync(): void {
+    const selected = project.settings[setting];
+    const font = FONT_CATALOG[selected];
+    const sample = document.createElement("span");
+    const arrow = document.createElement("span");
+    sample.className = "font-picker-current";
+    sample.textContent = font.name;
+    sample.style.fontFamily = `"${font.name}", sans-serif`;
+    sample.style.fontWeight = String(font.weight);
+    arrow.className = "font-picker-arrow";
+    arrow.setAttribute("aria-hidden", "true");
+    arrow.textContent = "▾";
+    pickerTrigger.replaceChildren(sample, arrow);
+    pickerTrigger.setAttribute("aria-label", `${labels[setting]}: ${font.name}`);
+
+    for (const option of pickerListbox.querySelectorAll<HTMLButtonElement>(
+      ".font-picker-option",
+    )) {
+      option.setAttribute(
+        "aria-selected",
+        String(option.dataset.fontName === selected),
+      );
+    }
+  }
+
+  function setOpen(open: boolean, focusSelected = false): void {
+    pickerListbox.hidden = !open;
+    pickerTrigger.setAttribute("aria-expanded", String(open));
+    if (open && focusSelected) {
+      pickerListbox
+        .querySelector<HTMLButtonElement>('[aria-selected="true"]')
+        ?.focus();
+    }
+  }
+
+  pickerTrigger.addEventListener("click", () => {
+    const open = pickerListbox.hidden === true;
+    setOpen(open, open);
+  });
+  pickerTrigger.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      setOpen(true, true);
+    }
+  });
+  pickerListbox.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const option = event.target.closest<HTMLButtonElement>(
+      ".font-picker-option",
+    );
+    const fontName = option?.dataset.fontName;
+    const font = options.find((candidate) => candidate.name === fontName);
+    if (!font) return;
+
+    if (setting === "font") project.settings.font = font.name;
+    else project.settings.highlightFont = font.name;
+    sync();
+    setOpen(false);
+    pickerTrigger.focus();
+    onSelect();
+  });
+  pickerListbox.addEventListener("keydown", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const option = event.target.closest<HTMLButtonElement>(
+      ".font-picker-option",
+    );
+    if (!option) return;
+    const items = Array.from(
+      pickerListbox.querySelectorAll<HTMLButtonElement>(".font-picker-option"),
+    );
+    const currentIndex = items.indexOf(option);
+    let nextIndex = currentIndex;
+
+    if (event.key === "ArrowDown") nextIndex = Math.min(items.length - 1, currentIndex + 1);
+    else if (event.key === "ArrowUp") nextIndex = Math.max(0, currentIndex - 1);
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = items.length - 1;
+    else return;
+
+    event.preventDefault();
+    items[nextIndex]?.focus();
+  });
+
+  document.addEventListener("pointerdown", (event) => {
+    if (event.target instanceof Node && !root.contains(event.target)) {
+      setOpen(false);
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || pickerListbox.hidden) return;
+    event.preventDefault();
+    setOpen(false);
+    pickerTrigger.focus();
+  });
+
+  sync();
+  return { sync };
+}
+
 export function mountPanels(
   project: Project,
   onProjectChange: () => void,
@@ -78,9 +223,30 @@ export function mountPanels(
   const titleInput = getElement<HTMLInputElement>("#title");
   const lyricsInput = getElement<HTMLTextAreaElement>("#lyrics");
   const themeGrid = getElement<HTMLDivElement>("#themes");
-  const fontSelect = getElement<HTMLSelectElement>("#font");
-  const highlightFontSelect =
-    getElement<HTMLSelectElement>("#highlightFont");
+  const fontPicker = mountFontPicker(
+    getElement<HTMLElement>("#fontPicker"),
+    "font",
+    project,
+    () => {
+      commit();
+      loadSelectedFont(project, onProjectChange);
+    },
+  );
+  const highlightFontPicker = mountFontPicker(
+    getElement<HTMLElement>("#highlightFontPicker"),
+    "highlightFont",
+    project,
+    () => {
+      commit();
+      loadSelectedFont(project, onProjectChange);
+    },
+  );
+  const fontSizeInput = getElement<HTMLInputElement>("#fontSize");
+  const fontSizeOutput = getElement<HTMLOutputElement>("#fontSizeValue");
+  const highlightFontSizeInput =
+    getElement<HTMLInputElement>("#highlightFontSize");
+  const highlightFontSizeOutput =
+    getElement<HTMLOutputElement>("#highlightFontSizeValue");
   const animationSelect = getElement<HTMLSelectElement>("#anim");
   const positionSelect = getElement<HTMLSelectElement>("#pos");
   const inkInput = getElement<HTMLInputElement>("#ink");
@@ -99,18 +265,6 @@ export function mountPanels(
     onProjectChange();
   };
 
-  for (const font of FONT_OPTIONS) {
-    const option = document.createElement("option");
-    option.value = font;
-    option.textContent = font;
-    fontSelect.append(option);
-
-    const highlightOption = document.createElement("option");
-    highlightOption.value = font;
-    highlightOption.textContent = font;
-    highlightFontSelect.append(highlightOption);
-  }
-
   function updateThemeButtons(): void {
     for (const button of themeGrid.querySelectorAll<HTMLButtonElement>(".theme")) {
       button.setAttribute(
@@ -121,8 +275,12 @@ export function mountPanels(
   }
 
   function syncSettings(): void {
-    fontSelect.value = project.settings.font;
-    highlightFontSelect.value = project.settings.highlightFont;
+    fontPicker.sync();
+    highlightFontPicker.sync();
+    fontSizeInput.value = String(project.settings.fontSize);
+    fontSizeOutput.value = `${project.settings.fontSize}%`;
+    highlightFontSizeInput.value = String(project.settings.highlightFontSize);
+    highlightFontSizeOutput.value = `${project.settings.highlightFontSize}%`;
     animationSelect.value = project.settings.animation;
     positionSelect.value = project.settings.position;
     inkInput.value = project.settings.inkColor;
@@ -154,10 +312,12 @@ export function mountPanels(
     sample.className = "theme-sample";
     sampleStart.textContent = "TÃO ";
     sampleStart.style.fontFamily = `"${theme.font}", sans-serif`;
-    sampleStart.style.fontWeight = String(FONTS[theme.font]);
+    sampleStart.style.fontWeight = String(FONT_CATALOG[theme.font].weight);
     sampleHighlight.textContent = theme.name;
     sampleHighlight.style.fontFamily = `"${theme.highlightFont}", cursive`;
-    sampleHighlight.style.fontWeight = String(FONTS[theme.highlightFont]);
+    sampleHighlight.style.fontWeight = String(
+      FONT_CATALOG[theme.highlightFont].weight,
+    );
     sampleHighlight.style.color = theme.hl;
     name.className = "theme-name";
     name.textContent = theme.name;
@@ -178,6 +338,20 @@ export function mountPanels(
     project.lyrics = lyricsInput.value;
     commit();
   });
+  fontSizeInput.addEventListener("input", () => {
+    const value = fontSizeInput.valueAsNumber;
+    if (!Number.isFinite(value)) return;
+    project.settings.fontSize = Math.min(200, Math.max(50, value));
+    fontSizeOutput.value = `${project.settings.fontSize}%`;
+    commit();
+  });
+  highlightFontSizeInput.addEventListener("input", () => {
+    const value = highlightFontSizeInput.valueAsNumber;
+    if (!Number.isFinite(value)) return;
+    project.settings.highlightFontSize = Math.min(250, Math.max(50, value));
+    highlightFontSizeOutput.value = `${project.settings.highlightFontSize}%`;
+    commit();
+  });
   themeGrid.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest<HTMLButtonElement>(".theme");
@@ -191,22 +365,6 @@ export function mountPanels(
     loadSelectedFont(project, onProjectChange);
   });
 
-  fontSelect.addEventListener("change", () => {
-    const font = FONT_OPTIONS.find((candidate) => candidate === fontSelect.value);
-    if (!font) return;
-    project.settings.font = font;
-    commit();
-    loadSelectedFont(project, onProjectChange);
-  });
-  highlightFontSelect.addEventListener("change", () => {
-    const font = FONT_OPTIONS.find(
-      (candidate) => candidate === highlightFontSelect.value,
-    );
-    if (!font) return;
-    project.settings.highlightFont = font;
-    commit();
-    loadSelectedFont(project, onProjectChange);
-  });
   animationSelect.addEventListener("change", () => {
     const animation = ANIMATION_OPTIONS.find(
       (candidate) => candidate === animationSelect.value,
@@ -388,6 +546,8 @@ function applyTheme(project: Project, theme: Theme): void {
     themeId: theme.id,
     font: theme.font,
     highlightFont: theme.highlightFont,
+    fontSize: 100,
+    highlightFontSize: FONT_CATALOG[theme.highlightFont].isCursive ? 120 : 100,
     animation: theme.anim,
     inkColor: theme.ink,
     highlightColor: theme.hl,
@@ -403,7 +563,9 @@ function loadSelectedFont(
   if (!document.fonts) return;
   const fonts = [project.settings.font, project.settings.highlightFont];
   void Promise.all(
-    fonts.map((font) => document.fonts.load(`${FONTS[font]} 40px "${font}"`)),
+    fonts.map((font) =>
+      document.fonts.load(`${FONT_CATALOG[font].weight} 40px "${font}"`),
+    ),
   )
     .then(onProjectChange, onProjectChange);
 }

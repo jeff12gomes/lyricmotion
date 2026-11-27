@@ -28,6 +28,8 @@ describe("project state", () => {
     project.title = "Canção de teste";
     project.lyrics = "linha 1\nlinha 2\n\nlinha 3\n\nlinha 4\nlinha 5";
     project.settings.highlightFont = "Great Vibes";
+    project.settings.fontSize = 75;
+    project.settings.highlightFontSize = 160;
 
     saveProject(project);
 
@@ -45,6 +47,32 @@ describe("project state", () => {
     stubStorage({ [STORAGE_KEY]: JSON.stringify(legacyProject) });
 
     expect(loadProject()).toEqual(project);
+  });
+
+  it("adds default font sizes to projects saved before size controls existed", () => {
+    const project = createDefaultProject();
+    const {
+      fontSize: _fontSize,
+      highlightFontSize: _highlightFontSize,
+      ...legacySettings
+    } = project.settings;
+    stubStorage({
+      [STORAGE_KEY]: JSON.stringify({ ...project, settings: legacySettings }),
+    });
+
+    expect(loadProject()).toEqual(project);
+  });
+
+  it("rejects font sizes outside their supported ranges", () => {
+    const project = createDefaultProject();
+    project.settings.fontSize = 201;
+    stubStorage({ [STORAGE_KEY]: JSON.stringify(project) });
+    expect(loadProject()).toEqual(createDefaultProject());
+
+    project.settings.fontSize = 100;
+    project.settings.highlightFontSize = 251;
+    stubStorage({ [STORAGE_KEY]: JSON.stringify(project) });
+    expect(loadProject()).toEqual(createDefaultProject());
   });
 
   it("returns the default project when stored data is corrupt", () => {
@@ -78,5 +106,11 @@ describe("project state", () => {
 
   it("uses six seconds per scene by default", () => {
     expect(createDefaultProject().settings.secondsPerScene).toBe(6);
+  });
+
+  it("uses the requested default scales for both font families", () => {
+    const { settings } = createDefaultProject();
+    expect(settings.fontSize).toBe(100);
+    expect(settings.highlightFontSize).toBe(115);
   });
 });

@@ -1,16 +1,171 @@
-import type { FontFamily, Theme } from "../types";
+import type { FontFamily, FontOption, Theme } from "../types";
 
-export const FONTS: Record<FontFamily, number> = {
-  Anton: 400,
-  Caveat: 700,
-  "Dancing Script": 700,
-  "Great Vibes": 400,
-  Montserrat: 800,
-  Oswald: 700,
-  Poppins: 700,
-  "Playfair Display": 700,
-  Lora: 600,
-  "Bebas Neue": 400,
+export const FONT_CATALOG: Record<FontFamily, FontOption> = {
+  Anton: { name: "Anton", weight: 400, category: "Cheias", isCursive: false },
+  "Archivo Black": {
+    name: "Archivo Black",
+    weight: 400,
+    category: "Cheias",
+    isCursive: false,
+  },
+  "Alfa Slab One": {
+    name: "Alfa Slab One",
+    weight: 400,
+    category: "Cheias",
+    isCursive: false,
+  },
+  "Black Ops One": {
+    name: "Black Ops One",
+    weight: 400,
+    category: "Cheias",
+    isCursive: false,
+  },
+  "Bebas Neue": {
+    name: "Bebas Neue",
+    weight: 400,
+    category: "Cheias",
+    isCursive: false,
+  },
+  Montserrat: {
+    name: "Montserrat",
+    weight: 800,
+    category: "Cheias",
+    isCursive: false,
+  },
+  "Russo One": {
+    name: "Russo One",
+    weight: 400,
+    category: "Cheias",
+    isCursive: false,
+  },
+  Caveat: {
+    name: "Caveat",
+    weight: 700,
+    category: "Manuscritas",
+    isCursive: true,
+  },
+  "Dancing Script": {
+    name: "Dancing Script",
+    weight: 700,
+    category: "Manuscritas",
+    isCursive: true,
+  },
+  "Great Vibes": {
+    name: "Great Vibes",
+    weight: 400,
+    category: "Manuscritas",
+    isCursive: true,
+  },
+  Allura: {
+    name: "Allura",
+    weight: 400,
+    category: "Manuscritas",
+    isCursive: true,
+  },
+  "Kaushan Script": {
+    name: "Kaushan Script",
+    weight: 400,
+    category: "Manuscritas",
+    isCursive: true,
+  },
+  Pacifico: {
+    name: "Pacifico",
+    weight: 400,
+    category: "Manuscritas",
+    isCursive: true,
+  },
+  Satisfy: {
+    name: "Satisfy",
+    weight: 400,
+    category: "Manuscritas",
+    isCursive: true,
+  },
+  "Chakra Petch": {
+    name: "Chakra Petch",
+    weight: 700,
+    category: "Underground",
+    isCursive: false,
+  },
+  "Cinzel Decorative": {
+    name: "Cinzel Decorative",
+    weight: 700,
+    category: "Underground",
+    isCursive: false,
+  },
+  "Permanent Marker": {
+    name: "Permanent Marker",
+    weight: 400,
+    category: "Underground",
+    isCursive: false,
+  },
+  "Rubik Glitch": {
+    name: "Rubik Glitch",
+    weight: 400,
+    category: "Underground",
+    isCursive: false,
+  },
+  "Righteous": {
+    name: "Righteous",
+    weight: 400,
+    category: "Underground",
+    isCursive: false,
+  },
+  "Space Grotesk": {
+    name: "Space Grotesk",
+    weight: 700,
+    category: "Underground",
+    isCursive: false,
+  },
+  Syne: {
+    name: "Syne",
+    weight: 800,
+    category: "Underground",
+    isCursive: false,
+  },
+  Oswald: {
+    name: "Oswald",
+    weight: 700,
+    category: "Underground",
+    isCursive: false,
+  },
+  "Cormorant Garamond": {
+    name: "Cormorant Garamond",
+    weight: 400,
+    category: "Finas",
+    isCursive: false,
+  },
+  "Julius Sans One": {
+    name: "Julius Sans One",
+    weight: 400,
+    category: "Finas",
+    isCursive: false,
+  },
+  "Josefin Sans": {
+    name: "Josefin Sans",
+    weight: 300,
+    category: "Finas",
+    isCursive: false,
+  },
+  Lora: { name: "Lora", weight: 600, category: "Finas", isCursive: false },
+  Outfit: { name: "Outfit", weight: 300, category: "Finas", isCursive: false },
+  "Playfair Display": {
+    name: "Playfair Display",
+    weight: 700,
+    category: "Finas",
+    isCursive: false,
+  },
+  Poppins: {
+    name: "Poppins",
+    weight: 700,
+    category: "Finas",
+    isCursive: false,
+  },
+  Raleway: {
+    name: "Raleway",
+    weight: 300,
+    category: "Finas",
+    isCursive: false,
+  },
 };
 
 export const THEMES: Theme[] = [
