@@ -1,4 +1,5 @@
 import type { Theme } from "../types";
+import { invertHex } from "./colors";
 
 interface Particle {
   x: number;
@@ -46,10 +47,14 @@ export function drawBackground(
   ctx: CanvasRenderingContext2D,
   time: number,
   theme: Theme,
+  invertColors = false,
 ): void {
   const width = ctx.canvas.width;
   const height = ctx.canvas.height;
-  const [colorA, colorB, colorC] = theme.c;
+  const invertPalette = invertColors && theme.id !== "chroma";
+  const [colorA, colorB, colorC] = invertPalette
+    ? theme.c.map(invertHex)
+    : theme.c;
   const maxDimension = Math.max(width, height);
 
   if (theme.bg === "chapado") {
@@ -369,6 +374,15 @@ export function drawBackground(
 
   ctx.globalCompositeOperation = "source-over";
   if (theme.bg !== "suave") {
+    const paletteLuminance =
+      [colorA, colorB, colorC].reduce((total, color) => {
+        const red = Number.parseInt(color.slice(1, 3), 16) / 255;
+        const green = Number.parseInt(color.slice(3, 5), 16) / 255;
+        const blue = Number.parseInt(color.slice(5, 7), 16) / 255;
+        return total + 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+      }, 0) / 3;
+    const vignetteAlpha =
+      invertPalette && paletteLuminance > 0.55 ? 0.12 : 0.55;
     const vignette = ctx.createRadialGradient(
       width / 2,
       height / 2,
@@ -378,7 +392,7 @@ export function drawBackground(
       maxDimension * 0.75,
     );
     vignette.addColorStop(0, "rgba(0,0,0,0)");
-    vignette.addColorStop(1, "rgba(0,0,0,.55)");
+    vignette.addColorStop(1, `rgba(0,0,0,${vignetteAlpha})`);
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, width, height);
   }

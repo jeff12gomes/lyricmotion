@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultProject } from "../../src/state";
 import { drawText } from "../../src/render/text";
-import type { Animation } from "../../src/types";
+import type { Animation, AnimationUnit, Position } from "../../src/types";
 
 function renderWords(
   text: string,
@@ -13,6 +13,12 @@ function renderWords(
   animDuration = 0.8,
   highlightAnimDuration = 1,
   elapsed = 1,
+  animUnit: AnimationUnit = "frase",
+  highlightAnimUnit: AnimationUnit = "frase",
+  position: Position = "centro",
+  invertColors = false,
+  inkColor = "#ffffff",
+  highlightColor = "#ffd166",
 ): Array<{
   text: string;
   font: string;
@@ -20,6 +26,7 @@ function renderWords(
   y: number;
   width: number;
   alpha: number;
+  fillStyle: string;
 }> {
   let activeFont = "";
   let activeAlpha = 1;
@@ -32,7 +39,9 @@ function renderWords(
     y: number;
     width: number;
     alpha: number;
+    fillStyle: string;
   }> = [];
+  let activeFillStyle = "";
   const context = {
     canvas: { width: 1920, height: 1080 },
     get font() {
@@ -43,7 +52,7 @@ function renderWords(
     },
     measureText: (value: string) => {
       const size = Number.parseFloat(activeFont.match(/[\d.]+px/)?.[0] ?? "0");
-      return { width: value.length * size };
+      return { width: Array.from(value).length * size };
     },
     save: () => transforms.push({ ...transform }),
     restore: () => {
@@ -67,8 +76,9 @@ function renderWords(
         font: activeFont,
         x: transform.x + x * transform.scaleX,
         y: transform.y + y * transform.scaleY,
-        width: value.length * size * transform.scaleX,
+        width: Array.from(value).length * size * transform.scaleX,
         alpha: activeAlpha,
+        fillStyle: activeFillStyle,
       });
     },
     textBaseline: "middle",
@@ -79,7 +89,12 @@ function renderWords(
     set globalAlpha(value: number) {
       activeAlpha = value;
     },
-    fillStyle: "",
+    get fillStyle() {
+      return activeFillStyle;
+    },
+    set fillStyle(value: string) {
+      activeFillStyle = value;
+    },
     shadowColor: "",
     shadowBlur: 0,
     shadowOffsetY: 0,
@@ -93,6 +108,12 @@ function renderWords(
   project.settings.highlightAnim = highlightAnim;
   project.settings.animDuration = animDuration;
   project.settings.highlightAnimDuration = highlightAnimDuration;
+  project.settings.animUnit = animUnit;
+  project.settings.highlightAnimUnit = highlightAnimUnit;
+  project.settings.position = position;
+  project.settings.invertColors = invertColors;
+  project.settings.inkColor = inkColor;
+  project.settings.highlightColor = highlightColor;
 
   drawText(context, { text }, elapsed, 1, project);
   return drawnWords;
@@ -156,17 +177,27 @@ describe("drawText", () => {
     ];
 
     for (const animation of animations) {
-      const words = renderWords(
-        "Texto *destacado*",
-        "Poppins",
-        100,
-        115,
-        animation,
-        animation,
-      );
-      expect(words.map(({ text }) => text).join("")).toBe("TEXTODESTACADO");
-      if (animation === "espacar") expect(words.length).toBeGreaterThan(2);
-      else expect(words).toHaveLength(2);
+      for (const unit of ["letras", "palavra", "frase"] as const) {
+        const words = renderWords(
+          "Texto *destacado*",
+          "Poppins",
+          100,
+          115,
+          animation,
+          animation,
+          1,
+          1,
+          1,
+          unit,
+          unit,
+        );
+        expect(words.map(({ text }) => text).join("")).toBe("TEXTODESTACADO");
+        if (unit === "letras" || animation === "espacar") {
+          expect(words.length).toBeGreaterThan(2);
+        } else {
+          expect(words).toHaveLength(2);
+        }
+      }
     }
   });
 
@@ -195,6 +226,7 @@ describe("drawText", () => {
       2.5,
       1,
       2.5,
+      "palavra",
     );
     expect(staggeredAtEnd.at(-1)?.alpha).toBeCloseTo(1);
     const staggeredInProgress = renderWords(
@@ -207,9 +239,179 @@ describe("drawText", () => {
       2.5,
       1,
       1,
+      "palavra",
     );
     expect(staggeredInProgress[0].alpha).toBeGreaterThan(
       staggeredInProgress.at(-1)!.alpha,
     );
+  });
+
+  it("animates every normal word together when the unit is phrase", () => {
+    const words = renderWords(
+      "Um dois três",
+      "Poppins",
+      100,
+      115,
+      "surgir",
+      "surgir",
+      2,
+      1,
+      0.5,
+      "frase",
+      "frase",
+    );
+
+    expect(new Set(words.map(({ alpha }) => alpha)).size).toBe(1);
+    expect(words[0].alpha).toBeGreaterThan(0);
+    expect(words[0].alpha).toBeLessThan(1);
+  });
+
+  it("staggered words complete at the end of their configured duration", () => {
+    const words = renderWords(
+      "Um dois três quatro",
+      "Poppins",
+      100,
+      115,
+      "surgir",
+      "surgir",
+      2,
+      1,
+      0.8,
+      "palavra",
+      "frase",
+    );
+    expect(words[0].alpha).toBeGreaterThan(words.at(-1)!.alpha);
+
+    const finished = renderWords(
+      "Um dois três quatro",
+      "Poppins",
+      100,
+      115,
+      "surgir",
+      "surgir",
+      2,
+      1,
+      2,
+      "palavra",
+      "frase",
+    );
+    expect(finished.every(({ alpha }) => alpha === 1)).toBe(true);
+  });
+
+  it("draws accented and non-BMP highlighted text character by character", () => {
+    const text = "Ação🌟";
+    const words = renderWords(
+      `*${text}*`,
+      "Poppins",
+      100,
+      115,
+      "surgir",
+      "surgir",
+      2,
+      1,
+      0.25,
+      "frase",
+      "letras",
+    );
+
+    expect(words.map(({ text: character }) => character)).toEqual(
+      Array.from(text.toUpperCase()),
+    );
+    expect(words.every(({ alpha }) => alpha < 1)).toBe(true);
+    expect(words.every(({ alpha }) => alpha >= 0)).toBe(true);
+    expect(words.slice(1).every((word, index) => word.x > words[index].x)).toBe(
+      true,
+    );
+    const finished = renderWords(
+      `*${text}*`,
+      "Poppins",
+      100,
+      115,
+      "surgir",
+      "surgir",
+      2,
+      1,
+      1,
+      "frase",
+      "letras",
+    );
+    expect(finished.every(({ alpha }) => alpha === 1)).toBe(true);
+  });
+
+  it("positions the text block inside the 10% top and bottom safe margins", () => {
+    const topWords = renderWords(
+      "ÃGUA É VIDA",
+      "Poppins",
+      100,
+      115,
+      "surgir",
+      "surgir",
+      0.8,
+      1,
+      1,
+      "frase",
+      "frase",
+      "topo",
+    );
+    const fontSize = Number.parseFloat(
+      topWords[0].font.match(/[\d.]+px/)?.[0] ?? "0",
+    );
+    const lineHeight = fontSize * 1.22;
+    expect(topWords[0].y - lineHeight / 2).toBeCloseTo(108);
+
+    const bottomWords = renderWords(
+      "ÃGUA É VIDA",
+      "Poppins",
+      100,
+      115,
+      "surgir",
+      "surgir",
+      0.8,
+      1,
+      1,
+      "frase",
+      "frase",
+      "baixo",
+    );
+    expect(bottomWords[0].y + lineHeight / 2).toBeCloseTo(1080 - 108);
+
+    const centeredWords = renderWords(
+      "ÃGUA É VIDA",
+      "Poppins",
+      100,
+      115,
+      "surgir",
+      "surgir",
+      0.8,
+      1,
+      1,
+      "frase",
+      "frase",
+      "centro",
+    );
+    expect(centeredWords[0].y).toBeCloseTo(1080 / 2);
+  });
+
+  it("inverts rendered text colors without changing the saved color settings", () => {
+    const words = renderWords(
+      "Principal *Destaque*",
+      "Poppins",
+      100,
+      115,
+      "surgir",
+      "surgir",
+      0.8,
+      1,
+      1,
+      "frase",
+      "frase",
+      "centro",
+      true,
+      "#123456",
+      "#abcdef",
+    );
+
+    expect(words[0].fillStyle).toBe("#edcba9");
+    expect(words[1].fillStyle).toBe("#543210");
   });
 });

@@ -1,10 +1,12 @@
 import { FONT_CATALOG, THEMES } from "./render/themes";
 import type {
   Animation,
+  AnimationUnit,
   FontFamily,
   Project,
   Position,
   Resolution,
+  SceneStyle,
   Settings,
 } from "./types";
 
@@ -32,7 +34,8 @@ const animations: Animation[] = [
   "espacar",
   "cortina",
 ];
-const positions: Position[] = ["centro", "baixo"];
+const positions: Position[] = ["topo", "centro", "baixo"];
+const animationUnits: AnimationUnit[] = ["letras", "palavra", "frase"];
 const fonts: FontFamily[] = Object.values(FONT_CATALOG).map(({ name }) => name);
 const resolutions: Resolution[] = [
   "1920x1080",
@@ -45,7 +48,9 @@ export function createDefaultProject(): Project {
   return {
     version: 1,
     title: "",
+    includeTitleScene: true,
     lyrics: SAMPLE_LYRICS,
+    sceneStyles: {},
     settings: {
       themeId: "aurora",
       font: "Montserrat",
@@ -54,17 +59,72 @@ export function createDefaultProject(): Project {
       highlightFontSize: 115,
       animation: "subir",
       highlightAnim: "quicar",
+      animUnit: "palavra",
+      highlightAnimUnit: "letras",
       animDuration: 0.8,
       highlightAnimDuration: 1.0,
       position: "centro",
       inkColor: "#ffffff",
       highlightColor: "#ffd166",
+      invertColors: false,
       uppercase: false,
       shadow: true,
       secondsPerScene: 6,
       resolution: "1920x1080",
     },
   };
+}
+
+export function getEffectiveStyle(
+  project: Project,
+  sceneIndex: number,
+): SceneStyle {
+  const { settings } = project;
+  return {
+    themeId: settings.themeId,
+    font: settings.font,
+    highlightFont: settings.highlightFont,
+    fontSize: settings.fontSize,
+    highlightFontSize: settings.highlightFontSize,
+    anim: settings.animation,
+    highlightAnim: settings.highlightAnim,
+    animUnit: settings.animUnit,
+    highlightAnimUnit: settings.highlightAnimUnit,
+    animDuration: settings.animDuration,
+    highlightAnimDuration: settings.highlightAnimDuration,
+    position: settings.position,
+    inkColor: settings.inkColor,
+    highlightColor: settings.highlightColor,
+    invertColors: settings.invertColors,
+    uppercase: settings.uppercase,
+    shadow: settings.shadow,
+    ...project.sceneStyles[sceneIndex],
+  };
+}
+
+export function isSceneStyleCustomized(
+  project: Project,
+  sceneIndex: number,
+): boolean {
+  return Object.keys(project.sceneStyles[sceneIndex] ?? {}).length > 0;
+}
+
+export function applyStyleToAllScenes(
+  project: Project,
+  sceneIndex: number,
+): void {
+  const { anim, ...style } = getEffectiveStyle(project, sceneIndex);
+  Object.assign(project.settings, style, { animation: anim });
+  project.sceneStyles = {};
+}
+
+export function restoreSceneStyle(
+  project: Project,
+  sceneIndex: number,
+): boolean {
+  if (!isSceneStyleCustomized(project, sceneIndex)) return false;
+  delete project.sceneStyles[sceneIndex];
+  return true;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -100,6 +160,8 @@ function isSettings(value: unknown): value is Settings {
     value.highlightFontSize <= 250 &&
     isOneOf(value.animation, animations) &&
     isOneOf(value.highlightAnim, animations) &&
+    isOneOf(value.animUnit, animationUnits) &&
+    isOneOf(value.highlightAnimUnit, animationUnits) &&
     typeof value.animDuration === "number" &&
     Number.isFinite(value.animDuration) &&
     value.animDuration >= 0.2 &&
@@ -111,10 +173,56 @@ function isSettings(value: unknown): value is Settings {
     isOneOf(value.position, positions) &&
     typeof value.inkColor === "string" &&
     typeof value.highlightColor === "string" &&
+    typeof value.invertColors === "boolean" &&
     typeof value.uppercase === "boolean" &&
     typeof value.shadow === "boolean" &&
     isOneOf(value.resolution, resolutions)
   );
+}
+
+function settingsWithSceneStyle(
+  settings: Settings,
+  style: Partial<SceneStyle>,
+): unknown {
+  const { anim, ...styleWithoutAnim } = style;
+  return {
+    ...settings,
+    ...styleWithoutAnim,
+    ...(anim === undefined ? {} : { animation: anim }),
+  };
+}
+
+function isSceneStyles(
+  value: unknown,
+  settings: Settings,
+): value is Record<number, Partial<SceneStyle>> {
+  if (!isRecord(value)) return false;
+  const validKeys = new Set<keyof SceneStyle>([
+    "themeId",
+    "font",
+    "highlightFont",
+    "fontSize",
+    "highlightFontSize",
+    "anim",
+    "highlightAnim",
+    "animDuration",
+    "highlightAnimDuration",
+    "animUnit",
+    "highlightAnimUnit",
+    "position",
+    "inkColor",
+    "highlightColor",
+    "invertColors",
+    "uppercase",
+    "shadow",
+  ]);
+  return Object.entries(value).every(([index, style]) => {
+    if (!/^(0|[1-9]\d*)$/.test(index) || !isRecord(style)) return false;
+    if (!Object.keys(style).every((key) => validKeys.has(key as keyof SceneStyle))) {
+      return false;
+    }
+    return isSettings(settingsWithSceneStyle(settings, style) as unknown);
+  });
 }
 
 function isProject(value: unknown): value is Project & Record<string, unknown> {
@@ -122,8 +230,10 @@ function isProject(value: unknown): value is Project & Record<string, unknown> {
     isRecord(value) &&
     value.version === 1 &&
     typeof value.title === "string" &&
+    typeof value.includeTitleScene === "boolean" &&
     typeof value.lyrics === "string" &&
-    isSettings(value.settings)
+    isSettings(value.settings) &&
+    isSceneStyles(value.sceneStyles, value.settings)
   );
 }
 
@@ -132,7 +242,14 @@ function sanitizeProject(value: Project & Record<string, unknown>): Project {
   return {
     version: 1,
     title: value.title,
+    includeTitleScene: value.includeTitleScene,
     lyrics: value.lyrics,
+    sceneStyles: Object.fromEntries(
+      Object.entries(value.sceneStyles).map(([index, style]) => [
+        Number(index),
+        { ...style },
+      ]),
+    ),
     settings: {
       themeId: settings.themeId,
       font: settings.font,
@@ -141,11 +258,14 @@ function sanitizeProject(value: Project & Record<string, unknown>): Project {
       highlightFontSize: settings.highlightFontSize,
       animation: settings.animation,
       highlightAnim: settings.highlightAnim,
+      animUnit: settings.animUnit,
+      highlightAnimUnit: settings.highlightAnimUnit,
       animDuration: settings.animDuration,
       highlightAnimDuration: settings.highlightAnimDuration,
       position: settings.position,
       inkColor: settings.inkColor,
       highlightColor: settings.highlightColor,
+      invertColors: settings.invertColors,
       uppercase: settings.uppercase,
       shadow: settings.shadow,
       secondsPerScene: settings.secondsPerScene,
@@ -158,6 +278,7 @@ function migrateProject(value: unknown): unknown {
   if (!isRecord(value) || !isRecord(value.settings)) return value;
   const settings = value.settings;
   const theme = THEMES.find(({ id }) => id === settings.themeId);
+  const sceneStyles = isRecord(value.sceneStyles) ? value.sceneStyles : {};
   const additions: Partial<
     Pick<
       Settings,
@@ -165,8 +286,11 @@ function migrateProject(value: unknown): unknown {
       | "fontSize"
       | "highlightFontSize"
       | "highlightAnim"
+      | "animUnit"
+      | "highlightAnimUnit"
       | "animDuration"
       | "highlightAnimDuration"
+      | "invertColors"
     >
   > = {};
   if (!("highlightFont" in settings) && theme) {
@@ -176,6 +300,10 @@ function migrateProject(value: unknown): unknown {
   if (!("highlightFontSize" in settings)) additions.highlightFontSize = 115;
   if (!("highlightAnim" in settings) && isOneOf(settings.animation, animations)) {
     additions.highlightAnim = settings.animation;
+  }
+  if (!("animUnit" in settings)) additions.animUnit = "palavra";
+  if (!("highlightAnimUnit" in settings)) {
+    additions.highlightAnimUnit = "letras";
   }
   const maxDuration =
     typeof settings.secondsPerScene === "number" &&
@@ -197,10 +325,23 @@ function migrateProject(value: unknown): unknown {
       Math.max(0.2, settings.highlightAnimDuration),
     );
   }
-  if (Object.keys(additions).length === 0) return value;
+  if (!("invertColors" in settings)) additions.invertColors = false;
+  const includeTitleScene =
+    typeof value.includeTitleScene === "boolean"
+      ? value.includeTitleScene
+      : true;
+  if (
+    Object.keys(additions).length === 0 &&
+    isRecord(value.sceneStyles) &&
+    typeof value.includeTitleScene === "boolean"
+  ) {
+    return value;
+  }
 
   return {
     ...value,
+    includeTitleScene,
+    sceneStyles,
     settings: { ...settings, ...additions },
   };
 }

@@ -44,6 +44,15 @@ describe("buildScenes", () => {
       { text: "Primeira linha" },
     ]);
   });
+
+  it("omits the title scene when the opening-scene option is disabled", () => {
+    const project = createDefaultProject();
+    project.title = "Minha canção";
+    project.includeTitleScene = false;
+    project.lyrics = "Primeira linha";
+
+    expect(buildScenes(project)).toEqual([{ text: "Primeira linha" }]);
+  });
 });
 
 describe("parseHighlights", () => {

@@ -1,14 +1,21 @@
 import { parseHighlightLines } from "../scenes";
-import type { FontFamily, Project, Scene } from "../types";
+import type {
+  Animation,
+  AnimationUnit,
+  FontFamily,
+  Project,
+  Scene,
+} from "../types";
+import { invertHex } from "./colors";
 import { FONT_CATALOG } from "./themes";
 
 interface LayoutWord {
   text: string;
   width: number;
-  glyphWidth: number;
   spaceAfter: number;
   highlighted: boolean;
-  animation: Project["settings"]["animation"];
+  animation: Animation;
+  animationUnit: AnimationUnit;
   font: FontFamily;
   weight: number;
   size: number;
@@ -28,14 +35,14 @@ function ease(value: number): number {
 }
 
 function animationProgress(
-  animation: Project["settings"]["animation"],
   elapsed: number,
   duration: number,
   sequenceIndex: number,
   sequenceCount: number,
+  unit: AnimationUnit,
 ): number {
   const staggerRatio =
-    animation === "palavras" ? 0.35 : animation === "subir" ? 0.2 : 0;
+    unit === "letras" ? 0.7 : unit === "palavra" ? 0.45 : 0;
   const staggerDuration =
     sequenceCount > 1 ? duration * staggerRatio : 0;
   const delay =
@@ -77,14 +84,24 @@ function layoutText(
         settings.uppercase && !handwritten ? word.text.toUpperCase() : word.text;
       ctx.font = `${FONT_CATALOG[font].weight} ${wordSize}px "${font}"`;
       const spaceAfter = ctx.measureText(" ").width;
-      const glyphWidth = ctx.measureText(wordText).width;
       const animation = word.highlighted
         ? settings.highlightAnim
         : settings.animation;
+      const animationUnit = word.highlighted
+        ? settings.highlightAnimUnit
+        : settings.animUnit;
+      const characters = Array.from(wordText);
+      const glyphWidth =
+        animationUnit === "letras"
+          ? characters.reduce(
+              (total, character) => total + ctx.measureText(character).width,
+              0,
+            )
+          : ctx.measureText(wordText).width;
       const wordWidth =
         glyphWidth +
         (animation === "espacar"
-          ? Math.max(0, Array.from(wordText).length - 1) * wordSize * 0.25
+          ? Math.max(0, characters.length - 1) * wordSize * 0.25
           : 0);
       const currentLine = lines[lines.length - 1];
       const precedingSpace = currentLine.length
@@ -99,10 +116,10 @@ function layoutText(
       line.push({
         text: wordText,
         width: wordWidth,
-        glyphWidth,
         spaceAfter,
         highlighted: word.highlighted,
         animation,
+        animationUnit,
         font,
         weight: FONT_CATALOG[font].weight,
         size: wordSize,
@@ -149,25 +166,42 @@ export function drawText(
     (total, lineHeight) => total + lineHeight,
     0,
   );
+  const safeMargin = height * 0.1;
   const centerY =
-    settings.position === "centro"
-      ? height / 2
-      : height - totalHeight / 2 - height * 0.09;
-  const wordCounts = new Map<Project["settings"]["animation"], number>();
-  const lineIndexes = new Map<number, number>();
-  let subirLineCount = 0;
-  for (const [lineIndex, line] of layout.lines.entries()) {
-    let hasSubir = false;
+    settings.position === "topo"
+      ? safeMargin + totalHeight / 2
+      : settings.position === "centro"
+        ? height / 2
+        : height - totalHeight / 2 - safeMargin;
+  const groupKey = (word: LayoutWord) =>
+    `${word.highlighted ? "highlight" : "main"}:${word.animationUnit}`;
+  const sequenceCounts = new Map<string, number>();
+  const sequenceIndexes = new Map<LayoutWord, number>();
+  const groupCounts = new Map<string, number>();
+  for (const line of layout.lines) {
     for (const word of line) {
-      if (word.animation === "palavras") {
-        wordCounts.set(
-          "palavras",
-          (wordCounts.get("palavras") ?? 0) + 1,
-        );
-      }
-      if (word.animation === "subir") hasSubir = true;
+      if (word.animationUnit === "frase") continue;
+      const key = groupKey(word);
+      const sequenceLength =
+        word.animationUnit === "letras" ? Array.from(word.text).length : 1;
+      sequenceCounts.set(
+        key,
+        (sequenceCounts.get(key) ?? 0) + sequenceLength,
+      );
     }
-    if (hasSubir) lineIndexes.set(lineIndex, subirLineCount++);
+  }
+  for (const line of layout.lines) {
+    for (const word of line) {
+      if (word.animationUnit === "frase") {
+        sequenceIndexes.set(word, 0);
+        continue;
+      }
+      const key = groupKey(word);
+      sequenceIndexes.set(word, groupCounts.get(key) ?? 0);
+      const sequenceLength =
+        word.animationUnit === "letras" ? Array.from(word.text).length : 1;
+      groupCounts.set(key, (groupCounts.get(key) ?? 0) + sequenceLength);
+    }
   }
 
   ctx.save();
@@ -179,7 +213,6 @@ export function drawText(
     ctx.shadowOffsetY = size * 0.04;
   }
 
-  let wordAnimationIndex = 0;
   let lineTop = centerY - totalHeight / 2;
   layout.lines.forEach((line, lineIndex) => {
     const lineHeight = layout.lineHeights[lineIndex];
@@ -192,86 +225,130 @@ export function drawText(
     const y = lineTop + lineHeight / 2;
 
     for (const [wordLineIndex, word] of line.entries()) {
-      const animationIndex =
-        word.animation === "palavras" ? wordAnimationIndex : lineIndex;
-      const animationCount =
-        word.animation === "palavras"
-          ? (wordCounts.get("palavras") ?? 1)
-          : word.animation === "subir"
-            ? subirLineCount
-            : 1;
-      const sequenceIndex =
-        word.animation === "subir"
-          ? (lineIndexes.get(lineIndex) ?? 0)
-          : animationIndex;
+      const key = groupKey(word);
+      const sequenceIndex = sequenceIndexes.get(word) ?? 0;
+      const sequenceCount =
+        word.animationUnit === "frase" ? 1 : (sequenceCounts.get(key) ?? 1);
       const duration = word.highlighted
         ? settings.highlightAnimDuration
         : settings.animDuration;
-      const progress = animationProgress(
-        word.animation,
+      const wordProgress = animationProgress(
         elapsed,
         duration,
         sequenceIndex,
-        animationCount,
+        sequenceCount,
+        word.animationUnit,
       );
-      const remaining = 1 - progress;
-      const offsetX =
-        word.animation === "deslizar-esq"
-          ? -word.width * 0.55 * remaining
-          : word.animation === "deslizar-dir"
-            ? word.width * 0.55 * remaining
-            : 0;
-      const offsetY =
-        word.animation === "subir" ? size * 0.45 * remaining : 0;
-      let scaleX = 1;
-      let scaleY = 1;
-      if (word.animation === "zoom") {
-        scaleX = scaleY = 1 + remaining * 0.12;
-      } else if (word.animation === "expandir") {
-        scaleX = scaleY = 0.65 + progress * 0.35;
-      } else if (word.animation === "quicar") {
-        const overshoot = Math.sin(progress * Math.PI) * remaining * 0.38;
-        scaleX = scaleY = 0.76 + progress * 0.24 + overshoot;
-      }
-
-      ctx.globalAlpha = alpha * (word.animation === "cortina" ? 1 : progress);
       ctx.font = `${word.weight} ${word.size}px "${word.font}"`;
       ctx.fillStyle = word.highlighted
-        ? settings.highlightColor
-        : settings.inkColor;
+        ? settings.invertColors
+          ? invertHex(settings.highlightColor)
+          : settings.highlightColor
+        : settings.invertColors
+          ? invertHex(settings.inkColor)
+          : settings.inkColor;
+      const drawFragment = (
+        text: string,
+        fragmentX: number,
+        fragmentWidth: number,
+        progress: number,
+        motionWidth = fragmentWidth,
+      ) => {
+        const remaining = 1 - progress;
+        const offsetX =
+          word.animation === "deslizar-esq"
+            ? -motionWidth * 0.55 * remaining
+            : word.animation === "deslizar-dir"
+              ? motionWidth * 0.55 * remaining
+              : 0;
+        const offsetY =
+          word.animation === "subir"
+            ? size * 0.45 * remaining
+            : word.animation === "palavras"
+              ? size * 0.15 * remaining
+              : 0;
+        let scaleX = 1;
+        let scaleY = 1;
+        if (word.animation === "zoom") {
+          scaleX = scaleY = 1 + remaining * 0.12;
+        } else if (word.animation === "expandir") {
+          scaleX = scaleY = 0.65 + progress * 0.35;
+        } else if (word.animation === "quicar") {
+          const overshoot = Math.sin(progress * Math.PI) * remaining * 0.38;
+          scaleX = scaleY = 0.76 + progress * 0.24 + overshoot;
+        }
 
-      ctx.save();
-      ctx.translate(x + word.width / 2 + offsetX, y + offsetY);
-      ctx.scale(scaleX, scaleY);
-      if (word.animation === "cortina") {
-        ctx.beginPath();
-        ctx.rect(
-          -word.width / 2 - word.size,
-          word.size * 0.75 - word.size * 1.5 * progress,
-          word.width + word.size * 2,
-          word.size * 1.5 * progress,
+        ctx.globalAlpha =
+          alpha * (word.animation === "cortina" ? 1 : progress);
+        ctx.save();
+        ctx.translate(
+          fragmentX + fragmentWidth / 2 + offsetX,
+          y + offsetY,
         );
-        ctx.clip();
-      }
+        ctx.scale(scaleX, scaleY);
+        if (word.animation === "cortina") {
+          ctx.beginPath();
+          ctx.rect(
+            -fragmentWidth / 2 - word.size,
+            word.size * 0.75 - word.size * 1.5 * progress,
+            fragmentWidth + word.size * 2,
+            word.size * 1.5 * progress,
+          );
+          ctx.clip();
+        }
+        ctx.fillText(text, -fragmentWidth / 2, 0);
+        ctx.restore();
+      };
 
-      if (word.animation === "espacar") {
+      if (word.animationUnit === "letras" || word.animation === "espacar") {
         const characters = Array.from(word.text);
-        const tracking = word.size * 0.25 * remaining;
+        const characterWidths = characters.map(
+          (character) => ctx.measureText(character).width,
+        );
+        const characterProgresses = characters.map((_, index) =>
+          word.animationUnit === "letras"
+            ? animationProgress(
+                elapsed,
+                duration,
+                sequenceIndex + index,
+                sequenceCount,
+                word.animationUnit,
+              )
+            : wordProgress,
+        );
+        const gaps = characters.slice(1).map((_, index) =>
+          word.animation === "espacar"
+            ? word.size *
+              0.25 *
+              (1 -
+                (characterProgresses[index] +
+                  characterProgresses[index + 1]) /
+                  2)
+            : 0,
+        );
         const drawnWidth =
-          word.glyphWidth +
-          Math.max(0, characters.length - 1) * tracking;
-        let characterX = -word.width / 2 + (word.width - drawnWidth) / 2;
-        for (const character of characters) {
-          ctx.fillText(character, characterX, 0);
-          characterX += ctx.measureText(character).width + tracking;
+          characterWidths.reduce(
+            (total, characterWidth) => total + characterWidth,
+            0,
+          ) +
+          gaps.reduce((total, gap) => total + gap, 0);
+        let characterX = x + (word.width - drawnWidth) / 2;
+        for (const [index, character] of characters.entries()) {
+          const characterWidth = characterWidths[index];
+          drawFragment(
+            character,
+            characterX,
+            characterWidth,
+            characterProgresses[index],
+            word.width,
+          );
+          characterX += characterWidth + (gaps[index] ?? 0);
         }
       } else {
-        ctx.fillText(word.text, -word.width / 2, 0);
+        drawFragment(word.text, x, word.width, wordProgress);
       }
-      ctx.restore();
 
       x += word.width + (wordLineIndex < line.length - 1 ? word.spaceAfter : 0);
-      if (word.animation === "palavras") wordAnimationIndex += 1;
     }
     lineTop += lineHeight;
   });

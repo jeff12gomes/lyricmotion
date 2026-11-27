@@ -14,6 +14,15 @@
   </head>
   <body>
     <main id="app">
+      <header class="music-header">
+        <div class="music-title-field">
+          <label for="title">Nome da música</label>
+          <input id="title" type="text" placeholder="Digite o nome da música" />
+        </div>
+        <button id="saveChanges" class="save-changes" type="button">
+          Salvar alterações
+        </button>
+      </header>
       <section class="workspace" aria-label="Vídeos e prévia">
         <section class="card videos-panel" aria-label="Vídeos">
           <h2>CENAS</h2>
@@ -71,11 +80,23 @@
           </section>
         </section>
       </section>
+      <section class="theme-card card" aria-label="Temas">
+        <div class="theme-header">
+          <h2>Temas</h2>
+          <label class="theme-invert-toggle">
+            <input id="invertColors" type="checkbox" />
+            <span>Inverter cores</span>
+          </label>
+        </div>
+        <div id="themes" class="themes" aria-label="Temas"></div>
+      </section>
       <section class="panels" aria-label="Edição do projeto">
         <section class="card c1">
-          <h2>Letra</h2>
-          <label for="title">Nome da música (vira a cena de abertura)</label>
-          <input id="title" type="text" placeholder="Opcional" />
+          <h2>LETRA</h2>
+          <label class="check title-scene-option">
+            <input id="includeTitleScene" type="checkbox" />
+            <span>Usar nome da música como cena de abertura</span>
+          </label>
           <label for="lyrics">Letra (blocos separados por linha em branco)</label>
           <textarea id="lyrics" spellcheck="false"></textarea>
           <p class="hint">
@@ -86,8 +107,29 @@
         </section>
 
         <section class="card">
-          <h2>Estilo e Tamanho</h2>
-          <div id="themes" class="themes" aria-label="Temas"></div>
+          <h2>ESTILO E TAMANHO</h2>
+          <div class="scene-style-actions">
+            <p id="editingScene" class="editing-scene">Editando: Cena 01</p>
+            <div class="scene-style-buttons">
+              <button id="applyStyleAll" class="secondary-button" type="button">
+                Aplicar a todas as cenas
+              </button>
+              <button
+                id="restoreSceneStyle"
+                class="secondary-button"
+                type="button"
+                hidden
+              >
+                Restaurar padrão
+              </button>
+            </div>
+            <p
+              id="sceneStyleStatus"
+              class="scene-style-status"
+              role="status"
+              aria-live="polite"
+            ></p>
+          </div>
           <div class="row">
             <div class="font-picker-field">
               <span class="font-picker-label">Fonte principal</span>
@@ -181,6 +223,8 @@
                 step="0.1"
                 value="0.8"
               />
+              <label for="animUnit">Animar por</label>
+              <select id="animUnit" class="animation-unit-select"></select>
             </div>
             <div>
               <label for="highlightAnim">Animação do destaque (*palavra*)</label>
@@ -196,25 +240,38 @@
                 step="0.1"
                 value="1.0"
               />
+              <label for="highlightAnimUnit">Animar por</label>
+              <select
+                id="highlightAnimUnit"
+                class="animation-unit-select"
+              ></select>
             </div>
           </div>
           <label for="pos">Posição do texto</label>
           <select id="pos">
+            <option value="topo">Topo</option>
             <option value="centro">Centro</option>
             <option value="baixo">Terço inferior (para transmissão)</option>
           </select>
+          <h3>Cores do Texto</h3>
           <div class="colors">
-            <label for="ink"><input id="ink" type="color" /> Texto</label>
-            <label for="hl"><input id="hl" type="color" /> Destaque</label>
+            <label for="ink">
+              <input id="ink" type="color" /> Texto Principal
+            </label>
+            <label for="hl">
+              <input id="hl" type="color" /> Texto Destaque
+            </label>
           </div>
-          <label class="check">
-            <input id="up" type="checkbox" />
-            Letras maiúsculas
-          </label>
-          <label class="check">
-            <input id="shadow" type="checkbox" />
-            Sombra no texto
-          </label>
+          <div class="format-options">
+            <label class="check">
+              <input id="up" type="checkbox" />
+              <span>Letras maiúsculas</span>
+            </label>
+            <label class="check">
+              <input id="shadow" type="checkbox" />
+              <span>Sombra no texto</span>
+            </label>
+          </div>
           <h3>Logo da igreja</h3>
           <label class="file-label" for="logo">Enviar imagem do logo</label>
           <input id="logo" type="file" accept="image/*" />

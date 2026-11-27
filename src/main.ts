@@ -5,7 +5,7 @@ import { LiveMode } from "./live/live";
 import { render, type RenderState } from "./render/renderer";
 import { FONT_CATALOG } from "./render/themes";
 import { buildScenes, buildTimes } from "./scenes";
-import { loadProject } from "./state";
+import { getEffectiveStyle, loadProject } from "./state";
 import {
   mountPanels,
   renderSceneVideos,
@@ -42,6 +42,7 @@ async function startPreview(): Promise<void> {
   const exitLiveButton = getElement<HTMLButtonElement>("#liveExit");
   const status = getElement<HTMLElement>("#status");
   const exportButton = getElement<HTMLButtonElement>("#exp");
+  const saveChangesButton = getElement<HTMLButtonElement>("#saveChanges");
   const cancelButton = getElement<HTMLButtonElement>("#cancel");
   const saveButton = getElement<HTMLButtonElement>("#save");
   const progressBar = getElement<HTMLDivElement>("#bar");
@@ -56,6 +57,8 @@ async function startPreview(): Promise<void> {
   let scenes = buildScenes(project);
   let times = buildTimes(scenes, project).times;
   let selectedSceneIndex = 0;
+  let hasUnsavedChanges = false;
+  let stylePanel: { syncSceneStyle: () => void } | null = null;
   const [canvasWidth, canvasHeight] = project.settings.resolution
     .split("x")
     .map(Number);
@@ -98,6 +101,14 @@ async function startPreview(): Promise<void> {
   };
   const live = new LiveMode(player, () => scenes.length);
 
+  function markUnsavedChanges(): void {
+    hasUnsavedChanges = true;
+    saveChangesButton.classList.toggle(
+      "has-unsaved-changes",
+      hasUnsavedChanges,
+    );
+  }
+
   function updatePlaybackControls(sceneCount = scenes.length): void {
     liveButton.disabled = sceneCount === 0;
     exportButton.disabled = sceneCount === 0 || exportInProgress;
@@ -126,13 +137,21 @@ async function startPreview(): Promise<void> {
       generatedVideos,
       selectScene,
       downloadIndividual,
+      project,
     );
+    stylePanel?.syncSceneStyle();
     updatePlaybackControls();
   }
 
-  mountPanels(project, updateProject, (logo) => {
-    renderState.logo = logo;
-  });
+  stylePanel = mountPanels(
+    project,
+    updateProject,
+    (logo) => {
+      renderState.logo = logo;
+    },
+    () => selectedSceneIndex,
+    markUnsavedChanges,
+  );
 
   function setExportControls(disabled: boolean): void {
     if (disabled) {
@@ -203,6 +222,7 @@ async function startPreview(): Promise<void> {
       generatedVideos,
       selectScene,
       downloadIndividual,
+      project,
     );
   }
 
@@ -210,6 +230,7 @@ async function startPreview(): Promise<void> {
     if (!scenes[index] || exportInProgress) return;
     player.pause();
     selectedSceneIndex = index;
+    stylePanel?.syncSceneStyle();
     player.seek(0);
     previewStarted = true;
     player.play();
@@ -319,8 +340,14 @@ async function startPreview(): Promise<void> {
 
   if (document.fonts) {
     await document.fonts.ready;
+    const fontFamilies = new Set(
+      scenes.flatMap((_, index) => {
+        const style = getEffectiveStyle(project, index);
+        return [style.font, style.highlightFont];
+      }),
+    );
     await Promise.all(
-      [project.settings.font, project.settings.highlightFont].map((font) =>
+      [...fontFamilies].map((font) =>
         document.fonts.load(`${FONT_CATALOG[font].weight} 40px "${font}"`),
       ),
     );
@@ -479,6 +506,7 @@ async function startPreview(): Promise<void> {
           ...renderState,
           scenes: [scene],
           times: [0],
+          sceneIndexes: [currentBatch.sceneIndexes[currentBatch.index]],
           playing: true,
           live: null,
         });
@@ -557,6 +585,7 @@ async function startPreview(): Promise<void> {
         ...renderState,
         scenes: scenes[selectedSceneIndex] ? [scenes[selectedSceneIndex]] : [],
         times: [0],
+        sceneIndexes: [selectedSceneIndex],
         playing: player.isPlaying,
         pausedTime: previewStarted ? time : undefined,
         live: null,

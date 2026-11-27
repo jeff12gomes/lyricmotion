@@ -3,7 +3,7 @@ import type { HighlightWord, Project, Scene } from "./types";
 export function buildScenes(project: Project): Scene[] {
   const scenes: Scene[] = [];
 
-  if (project.title.trim()) {
+  if (project.includeTitleScene && project.title.trim()) {
     scenes.push({ text: project.title.trim(), title: true });
   }
 

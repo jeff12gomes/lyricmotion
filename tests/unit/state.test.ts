@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  applyStyleToAllScenes,
   createDefaultProject,
+  getEffectiveStyle,
+  isSceneStyleCustomized,
   loadProject,
+  restoreSceneStyle,
   saveProject,
 } from "../../src/state";
 
@@ -31,8 +35,18 @@ describe("project state", () => {
     project.settings.fontSize = 75;
     project.settings.highlightFontSize = 160;
     project.settings.highlightAnim = "quicar";
+    project.settings.animUnit = "frase";
+    project.settings.highlightAnimUnit = "palavra";
+    project.settings.position = "topo";
+    project.settings.invertColors = true;
     project.settings.animDuration = 2.5;
     project.settings.highlightAnimDuration = 1.7;
+    project.sceneStyles[1] = {
+      themeId: "brasa-intensa",
+      font: "Anton",
+      anim: "quicar",
+      inkColor: "#fefefe",
+    };
 
     saveProject(project);
 
@@ -59,6 +73,9 @@ describe("project state", () => {
       highlightFontSize: _highlightFontSize,
       animDuration: _animDuration,
       highlightAnimDuration: _highlightAnimDuration,
+      animUnit: _animUnit,
+      highlightAnimUnit: _highlightAnimUnit,
+      invertColors: _invertColors,
       ...legacySettings
     } = project.settings;
     stubStorage({
@@ -78,6 +95,122 @@ describe("project state", () => {
     });
 
     expect(loadProject()).toEqual(project);
+  });
+
+  it("rejects unknown animation units", () => {
+    const project = createDefaultProject();
+    const invalidProject = {
+      ...project,
+      settings: { ...project.settings, highlightAnimUnit: "glyphs" },
+    };
+    stubStorage({ [STORAGE_KEY]: JSON.stringify(invalidProject) });
+
+    expect(loadProject()).toEqual(createDefaultProject());
+  });
+
+  it("defaults color inversion to off for projects saved before the option existed", () => {
+    const project = createDefaultProject();
+    const { invertColors: _invertColors, ...legacySettings } = project.settings;
+    stubStorage({
+      [STORAGE_KEY]: JSON.stringify({ ...project, settings: legacySettings }),
+    });
+    expect(loadProject()).toEqual(project);
+  });
+
+  it("uses the project style by default and merges only a scene's overrides", () => {
+    const project = createDefaultProject();
+    project.sceneStyles[1] = {
+      themeId: "brasa-intensa",
+      anim: "expandir",
+      highlightColor: "#ff0000",
+    };
+
+    expect(getEffectiveStyle(project, 0)).toMatchObject({
+      themeId: project.settings.themeId,
+      anim: project.settings.animation,
+      font: project.settings.font,
+    });
+    expect(getEffectiveStyle(project, 1)).toMatchObject({
+      themeId: "brasa-intensa",
+      anim: "expandir",
+      highlightColor: "#ff0000",
+      font: project.settings.font,
+      highlightAnim: project.settings.highlightAnim,
+    });
+  });
+
+  it("persists scene-specific style overrides in localStorage", () => {
+    const project = createDefaultProject();
+    project.sceneStyles[2] = {
+      themeId: "brasa-intensa",
+      font: "Anton",
+      anim: "quicar",
+      position: "topo",
+    };
+    const { data } = stubStorage();
+
+    saveProject(project);
+
+    expect(JSON.parse(data.get(STORAGE_KEY) ?? "{}").sceneStyles).toEqual(
+      project.sceneStyles,
+    );
+    expect(loadProject()).toEqual(project);
+  });
+
+  it("applies the selected scene's effective style as the project default", () => {
+    const project = createDefaultProject();
+    project.settings.resolution = "1280x720";
+    project.settings.secondsPerScene = 8;
+    project.sceneStyles[1] = {
+      themeId: "brasa-intensa",
+      font: "Anton",
+      anim: "quicar",
+      highlightColor: "#ff0000",
+    };
+
+    applyStyleToAllScenes(project, 1);
+
+    expect(project.settings).toMatchObject({
+      themeId: "brasa-intensa",
+      font: "Anton",
+      animation: "quicar",
+      highlightColor: "#ff0000",
+      resolution: "1280x720",
+      secondsPerScene: 8,
+    });
+    expect(project.sceneStyles).toEqual({});
+    expect(getEffectiveStyle(project, 0)).toEqual(getEffectiveStyle(project, 1));
+  });
+
+  it("restores a customized scene to the project default", () => {
+    const project = createDefaultProject();
+    project.sceneStyles[1] = { themeId: "brasa-intensa" };
+
+    expect(isSceneStyleCustomized(project, 1)).toBe(true);
+    expect(restoreSceneStyle(project, 1)).toBe(true);
+    expect(isSceneStyleCustomized(project, 1)).toBe(false);
+    expect(getEffectiveStyle(project, 1)).toEqual(getEffectiveStyle(project, 0));
+    expect(restoreSceneStyle(project, 1)).toBe(false);
+  });
+
+  it("adds an empty scene style map when loading an older project", () => {
+    const project = createDefaultProject();
+    const {
+      sceneStyles: _sceneStyles,
+      includeTitleScene: _includeTitleScene,
+      ...legacyProject
+    } = project;
+    stubStorage({ [STORAGE_KEY]: JSON.stringify(legacyProject) });
+
+    expect(loadProject()).toEqual(project);
+  });
+
+  it("keeps the title scene enabled when migrating older projects", () => {
+    const project = createDefaultProject();
+    const { includeTitleScene: _includeTitleScene, ...legacyProject } = project;
+    stubStorage({ [STORAGE_KEY]: JSON.stringify(legacyProject) });
+
+    expect(loadProject().includeTitleScene).toBe(true);
   });
 
   it("rejects font sizes outside their supported ranges", () => {

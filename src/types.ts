@@ -9,7 +9,8 @@ export type Animation =
   | "quicar"
   | "espacar"
   | "cortina";
-export type Position = "centro" | "baixo";
+export type AnimationUnit = "letras" | "palavra" | "frase";
+export type Position = "topo" | "centro" | "baixo";
 export type Resolution =
   | "1920x1080"
   | "1280x720"
@@ -74,21 +75,28 @@ export interface Scene {
   title?: boolean;
 }
 
-export interface Settings {
+export interface SceneStyle {
   themeId: string;
   font: FontFamily;
   highlightFont: FontFamily;
   fontSize: number;
   highlightFontSize: number;
-  animation: Animation;
+  anim: Animation;
   highlightAnim: Animation;
+  animUnit: AnimationUnit;
+  highlightAnimUnit: AnimationUnit;
   animDuration: number;
   highlightAnimDuration: number;
   position: Position;
   inkColor: string;
   highlightColor: string;
+  invertColors: boolean;
   uppercase: boolean;
   shadow: boolean;
+}
+
+export interface Settings extends Omit<SceneStyle, "anim"> {
+  animation: Animation;
   secondsPerScene: number;
   resolution: Resolution;
 }
@@ -96,8 +104,10 @@ export interface Settings {
 export interface Project {
   version: 1;
   title: string;
+  includeTitleScene: boolean;
   lyrics: string;
   settings: Settings;
+  sceneStyles: Record<number, Partial<SceneStyle>>;
 }
 
 export interface Theme {

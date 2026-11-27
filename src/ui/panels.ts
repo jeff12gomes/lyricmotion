@@ -1,10 +1,20 @@
-import { saveProject } from "../state";
+import {
+  applyStyleToAllScenes,
+  getEffectiveStyle,
+  isSceneStyleCustomized,
+  restoreSceneStyle,
+  saveProject,
+} from "../state";
 import { FONT_CATALOG, THEMES } from "../render/themes";
+import { buildScenes } from "../scenes";
 import type {
   Animation,
+  AnimationUnit,
+  FontFamily,
   Position,
   Project,
   Resolution,
+  SceneStyle,
   Scene,
   Theme,
 } from "../types";
@@ -28,7 +38,12 @@ const ANIMATION_OPTIONS: Array<{ value: Animation; label: string }> = [
   { value: "espacar", label: "Espaçar letras" },
   { value: "cortina", label: "Cortina de baixo para cima" },
 ];
-const POSITION_OPTIONS: Position[] = ["centro", "baixo"];
+const ANIMATION_UNIT_OPTIONS: Array<{ value: AnimationUnit; label: string }> = [
+  { value: "letras", label: "Letras" },
+  { value: "palavra", label: "Palavra" },
+  { value: "frase", label: "Frase" },
+];
+const POSITION_OPTIONS: Position[] = ["topo", "centro", "baixo"];
 const RESOLUTION_OPTIONS: Resolution[] = [
   "1920x1080",
   "1280x720",
@@ -76,9 +91,9 @@ function loadImage(source: string): Promise<HTMLImageElement> {
 
 function mountFontPicker(
   root: HTMLElement,
-  setting: "font" | "highlightFont",
-  project: Project,
-  onSelect: () => void,
+  setting: keyof Pick<SceneStyle, "font" | "highlightFont">,
+  getSelectedFont: () => FontFamily,
+  onSelect: (font: FontFamily) => void,
 ): { sync: () => void } {
   const trigger = root.querySelector<HTMLButtonElement>(".font-picker-trigger");
   const listbox = root.querySelector<HTMLDivElement>('[role="listbox"]');
@@ -128,7 +143,7 @@ function mountFontPicker(
   }
 
   function sync(): void {
-    const selected = project.settings[setting];
+    const selected = getSelectedFont();
     const font = FONT_CATALOG[selected];
     const sample = document.createElement("span");
     const arrow = document.createElement("span");
@@ -181,12 +196,9 @@ function mountFontPicker(
     const font = options.find((candidate) => candidate.name === fontName);
     if (!font) return;
 
-    if (setting === "font") project.settings.font = font.name;
-    else project.settings.highlightFont = font.name;
-    sync();
     setOpen(false);
+    onSelect(font.name);
     pickerTrigger.focus();
-    onSelect();
   });
   pickerListbox.addEventListener("keydown", (event) => {
     if (!(event.target instanceof Element)) return;
@@ -230,26 +242,57 @@ export function mountPanels(
   project: Project,
   onProjectChange: () => void,
   onLogoChange: (logo: HTMLImageElement | null) => void,
-): void {
+  getSelectedSceneIndex: () => number,
+  onEdit: () => void,
+): { syncSceneStyle: () => void } {
   const titleInput = getElement<HTMLInputElement>("#title");
+  const includeTitleSceneInput =
+    getElement<HTMLInputElement>("#includeTitleScene");
   const lyricsInput = getElement<HTMLTextAreaElement>("#lyrics");
   const themeGrid = getElement<HTMLDivElement>("#themes");
+  const editingSceneLabel = getElement<HTMLElement>("#editingScene");
+  const applyStyleAllButton =
+    getElement<HTMLButtonElement>("#applyStyleAll");
+  const restoreSceneStyleButton =
+    getElement<HTMLButtonElement>("#restoreSceneStyle");
+  const sceneStyleStatus = getElement<HTMLElement>("#sceneStyleStatus");
+  const invertColorsInput =
+    getElement<HTMLInputElement>("#invertColors");
+  const commit = () => {
+    saveProject(project);
+    onEdit();
+    onProjectChange();
+  };
+  const activeStyle = () =>
+    getEffectiveStyle(project, getSelectedSceneIndex());
+  const updateStyle = (patch: Partial<SceneStyle>) => {
+    const sceneIndex = getSelectedSceneIndex();
+    const existing = project.sceneStyles[sceneIndex] ?? {};
+    const wasCustomized = Object.keys(existing).length > 0;
+    project.sceneStyles[sceneIndex] = { ...existing, ...patch };
+    if (sceneIndex === 0 && !wasCustomized) {
+      const { anim, ...defaultPatch } = patch;
+      Object.assign(project.settings, defaultPatch);
+      if (anim !== undefined) project.settings.animation = anim;
+    }
+    commit();
+  };
   const fontPicker = mountFontPicker(
     getElement<HTMLElement>("#fontPicker"),
     "font",
-    project,
-    () => {
-      commit();
-      loadSelectedFont(project, onProjectChange);
+    () => activeStyle().font,
+    (font) => {
+      updateStyle({ font });
+      loadSelectedFont(activeStyle(), onProjectChange);
     },
   );
   const highlightFontPicker = mountFontPicker(
     getElement<HTMLElement>("#highlightFontPicker"),
     "highlightFont",
-    project,
-    () => {
-      commit();
-      loadSelectedFont(project, onProjectChange);
+    () => activeStyle().highlightFont,
+    (font) => {
+      updateStyle({ highlightFont: font });
+      loadSelectedFont(activeStyle(), onProjectChange);
     },
   );
   const fontSizeInput = getElement<HTMLInputElement>("#fontSize");
@@ -261,6 +304,9 @@ export function mountPanels(
   const animationSelect = getElement<HTMLSelectElement>("#anim");
   const highlightAnimationSelect =
     getElement<HTMLSelectElement>("#highlightAnim");
+  const animationUnitSelect = getElement<HTMLSelectElement>("#animUnit");
+  const highlightAnimationUnitSelect =
+    getElement<HTMLSelectElement>("#highlightAnimUnit");
   const animationDurationInput =
     getElement<HTMLInputElement>("#animDuration");
   const highlightAnimationDurationInput =
@@ -285,56 +331,67 @@ export function mountPanels(
       select.append(option);
     }
   }
-
-  const commit = () => {
-    saveProject(project);
-    onProjectChange();
-  };
+  for (const { value, label } of ANIMATION_UNIT_OPTIONS) {
+    for (const select of [animationUnitSelect, highlightAnimationUnitSelect]) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      select.append(option);
+    }
+  }
 
   function syncAnimationDurations(): void {
     const max = project.settings.secondsPerScene;
+    const style = activeStyle();
     animationDurationInput.max = String(max);
     highlightAnimationDurationInput.max = String(max);
-    project.settings.animDuration = Math.min(
-      max,
-      Math.max(0.2, project.settings.animDuration),
-    );
-    project.settings.highlightAnimDuration = Math.min(
-      max,
-      Math.max(0.2, project.settings.highlightAnimDuration),
-    );
-    animationDurationInput.value = String(project.settings.animDuration);
+    animationDurationInput.value = String(style.animDuration);
     highlightAnimationDurationInput.value = String(
-      project.settings.highlightAnimDuration,
+      style.highlightAnimDuration,
     );
   }
 
   function updateThemeButtons(): void {
+    const themeId = activeStyle().themeId;
     for (const button of themeGrid.querySelectorAll<HTMLButtonElement>(".theme")) {
       button.setAttribute(
         "aria-pressed",
-        String(button.dataset.themeId === project.settings.themeId),
+        String(button.dataset.themeId === themeId),
       );
     }
   }
 
   function syncSettings(): void {
+    const style = activeStyle();
+    const sceneIndex = getSelectedSceneIndex();
     fontPicker.sync();
     highlightFontPicker.sync();
-    fontSizeInput.value = String(project.settings.fontSize);
-    fontSizeOutput.value = `${project.settings.fontSize}%`;
-    highlightFontSizeInput.value = String(project.settings.highlightFontSize);
-    highlightFontSizeOutput.value = `${project.settings.highlightFontSize}%`;
-    animationSelect.value = project.settings.animation;
-    highlightAnimationSelect.value = project.settings.highlightAnim;
+    fontSizeInput.value = String(style.fontSize);
+    fontSizeOutput.value = `${style.fontSize}%`;
+    highlightFontSizeInput.value = String(style.highlightFontSize);
+    highlightFontSizeOutput.value = `${style.highlightFontSize}%`;
+    animationSelect.value = style.anim;
+    highlightAnimationSelect.value = style.highlightAnim;
+    animationUnitSelect.value = style.animUnit;
+    highlightAnimationUnitSelect.value = style.highlightAnimUnit;
     syncAnimationDurations();
-    positionSelect.value = project.settings.position;
-    inkInput.value = project.settings.inkColor;
-    highlightInput.value = project.settings.highlightColor;
-    uppercaseInput.checked = project.settings.uppercase;
-    shadowInput.checked = project.settings.shadow;
+    positionSelect.value = style.position;
+    inkInput.value = style.inkColor;
+    highlightInput.value = style.highlightColor;
+    uppercaseInput.checked = style.uppercase;
+    invertColorsInput.checked = style.invertColors;
+    shadowInput.checked = style.shadow;
     secondsInput.value = String(project.settings.secondsPerScene);
     resolutionSelect.value = project.settings.resolution;
+    includeTitleSceneInput.checked = project.includeTitleScene;
+    editingSceneLabel.textContent =
+      `Editando: Cena ${String(sceneIndex + 1).padStart(2, "0")}`;
+    restoreSceneStyleButton.hidden = !isSceneStyleCustomized(
+      project,
+      sceneIndex,
+    );
+    applyStyleAllButton.disabled = buildScenes(project).length === 0;
+    sceneStyleStatus.textContent = "";
     updateThemeButtons();
   }
 
@@ -380,6 +437,10 @@ export function mountPanels(
     project.title = titleInput.value;
     commit();
   });
+  includeTitleSceneInput.addEventListener("change", () => {
+    project.includeTitleScene = includeTitleSceneInput.checked;
+    commit();
+  });
   lyricsInput.addEventListener("input", () => {
     project.lyrics = lyricsInput.value;
     commit();
@@ -391,16 +452,16 @@ export function mountPanels(
   ) => {
     const value = input.valueAsNumber;
     if (!Number.isFinite(value)) {
-      if (normalize) input.value = String(project.settings[setting]);
+      if (normalize) input.value = String(activeStyle()[setting]);
       return;
     }
     const rounded = Math.round(value * 10) / 10;
-    project.settings[setting] = Math.min(
+    const duration = Math.min(
       project.settings.secondsPerScene,
       Math.max(0.2, rounded),
     );
-    input.value = String(project.settings[setting]);
-    commit();
+    input.value = String(duration);
+    updateStyle({ [setting]: duration });
   };
   animationDurationInput.addEventListener("input", () =>
     updateAnimationDuration(animationDurationInput, "animDuration", false),
@@ -425,16 +486,16 @@ export function mountPanels(
   fontSizeInput.addEventListener("input", () => {
     const value = fontSizeInput.valueAsNumber;
     if (!Number.isFinite(value)) return;
-    project.settings.fontSize = Math.min(200, Math.max(50, value));
-    fontSizeOutput.value = `${project.settings.fontSize}%`;
-    commit();
+    const fontSize = Math.min(200, Math.max(50, value));
+    fontSizeOutput.value = `${fontSize}%`;
+    updateStyle({ fontSize });
   });
   highlightFontSizeInput.addEventListener("input", () => {
     const value = highlightFontSizeInput.valueAsNumber;
     if (!Number.isFinite(value)) return;
-    project.settings.highlightFontSize = Math.min(250, Math.max(50, value));
-    highlightFontSizeOutput.value = `${project.settings.highlightFontSize}%`;
-    commit();
+    const highlightFontSize = Math.min(250, Math.max(50, value));
+    highlightFontSizeOutput.value = `${highlightFontSize}%`;
+    updateStyle({ highlightFontSize });
   });
   themeGrid.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;
@@ -443,49 +504,70 @@ export function mountPanels(
     const theme = THEMES.find((candidate) => candidate.id === themeId);
     if (!theme) return;
 
-    applyTheme(project, theme);
+    updateStyle(themeStyle(theme));
     syncSettings();
-    commit();
-    loadSelectedFont(project, onProjectChange);
+    loadSelectedFont(activeStyle(), onProjectChange);
   });
 
   animationSelect.addEventListener("change", () => {
     const animation = ANIMATION_OPTIONS.find(({ value }) => value === animationSelect.value)
       ?.value;
     if (!animation) return;
-    project.settings.animation = animation;
-    commit();
+    updateStyle({ anim: animation });
   });
   highlightAnimationSelect.addEventListener("change", () => {
     const animation = ANIMATION_OPTIONS.find(
       ({ value }) => value === highlightAnimationSelect.value,
     )?.value;
     if (!animation) return;
-    project.settings.highlightAnim = animation;
-    commit();
+    updateStyle({ highlightAnim: animation });
+  });
+  animationUnitSelect.addEventListener("change", () => {
+    const unit = ANIMATION_UNIT_OPTIONS.find(
+      ({ value }) => value === animationUnitSelect.value,
+    )?.value;
+    if (!unit) return;
+    updateStyle({ animUnit: unit });
+  });
+  highlightAnimationUnitSelect.addEventListener("change", () => {
+    const unit = ANIMATION_UNIT_OPTIONS.find(
+      ({ value }) => value === highlightAnimationUnitSelect.value,
+    )?.value;
+    if (!unit) return;
+    updateStyle({ highlightAnimUnit: unit });
   });
   positionSelect.addEventListener("change", () => {
     const position = POSITION_OPTIONS.find(
       (candidate) => candidate === positionSelect.value,
     );
     if (!position) return;
-    project.settings.position = position;
-    commit();
+    updateStyle({ position });
   });
   inkInput.addEventListener("input", () => {
-    project.settings.inkColor = inkInput.value;
-    commit();
+    updateStyle({ inkColor: inkInput.value });
   });
   highlightInput.addEventListener("input", () => {
-    project.settings.highlightColor = highlightInput.value;
-    commit();
+    updateStyle({ highlightColor: highlightInput.value });
   });
   uppercaseInput.addEventListener("change", () => {
-    project.settings.uppercase = uppercaseInput.checked;
-    commit();
+    updateStyle({ uppercase: uppercaseInput.checked });
   });
   shadowInput.addEventListener("change", () => {
-    project.settings.shadow = shadowInput.checked;
+    updateStyle({ shadow: shadowInput.checked });
+  });
+  invertColorsInput.addEventListener("change", () => {
+    updateStyle({ invertColors: invertColorsInput.checked });
+  });
+  applyStyleAllButton.addEventListener("click", () => {
+    const sceneCount = buildScenes(project).length;
+    if (sceneCount === 0) return;
+    applyStyleToAllScenes(project, getSelectedSceneIndex());
+    commit();
+    sceneStyleStatus.textContent =
+      `Estilo aplicado a todas as ${sceneCount} cenas!`;
+  });
+  restoreSceneStyleButton.addEventListener("click", () => {
+    if (!restoreSceneStyle(project, getSelectedSceneIndex())) return;
     commit();
   });
   const updateSeconds = (normalize: boolean) => {
@@ -502,6 +584,22 @@ export function mountPanels(
       secondsInput.value = String(seconds);
     }
     project.settings.secondsPerScene = seconds;
+    project.settings.animDuration = Math.min(project.settings.animDuration, seconds);
+    project.settings.highlightAnimDuration = Math.min(
+      project.settings.highlightAnimDuration,
+      seconds,
+    );
+    for (const style of Object.values(project.sceneStyles)) {
+      if (style.animDuration !== undefined) {
+        style.animDuration = Math.min(style.animDuration, seconds);
+      }
+      if (style.highlightAnimDuration !== undefined) {
+        style.highlightAnimDuration = Math.min(
+          style.highlightAnimDuration,
+          seconds,
+        );
+      }
+    }
     syncAnimationDurations();
     commit();
   };
@@ -535,6 +633,7 @@ export function mountPanels(
     removeLogoButton.hidden = true;
     logoStatus.textContent = "";
     saveProject(project);
+    onEdit();
     try {
       globalThis.localStorage.removeItem(LOGO_STORAGE_KEY);
     } catch {
@@ -550,6 +649,7 @@ export function mountPanels(
       onLogoChange(image);
       removeLogoButton.hidden = false;
       saveProject(project);
+      onEdit();
 
       try {
         globalThis.localStorage.setItem(LOGO_STORAGE_KEY, dataUrl);
@@ -586,6 +686,7 @@ export function mountPanels(
   } catch {
     logoStatus.textContent = "Não foi possível restaurar o logo salvo.";
   }
+  return { syncSceneStyle: syncSettings };
 }
 
 export interface GeneratedVideo {
@@ -602,6 +703,7 @@ export function renderSceneVideos(
   videos: GeneratedVideo[],
   onSelect: (index: number) => void,
   onDownload: (index: number) => void,
+  project: Project,
 ): void {
   container.replaceChildren();
   for (const [index, scene] of scenes.entries()) {
@@ -614,10 +716,20 @@ export function renderSceneVideos(
     selectButton.type = "button";
     selectButton.className = "scene-select";
     selectButton.setAttribute("aria-pressed", String(index === selectedIndex));
-    selectButton.setAttribute("aria-label", `Selecionar cena ${index + 1}: ${snippet}`);
+    const customized = isSceneStyleCustomized(project, index);
+    selectButton.setAttribute(
+      "aria-label",
+      `Selecionar cena ${index + 1}${customized ? ", estilo personalizado" : ""}: ${snippet}`,
+    );
     const description = document.createElement("span");
     description.textContent = `${String(index + 1).padStart(2, "0")} · ${snippet}`;
     selectButton.append(description);
+    if (customized) {
+      const marker = document.createElement("span");
+      marker.className = "scene-customized";
+      marker.textContent = "Personalizada";
+      selectButton.append(marker);
+    }
     selectButton.addEventListener("click", () => onSelect(index));
 
     downloadButton.type = "button";
@@ -633,28 +745,28 @@ export function renderSceneVideos(
   }
 }
 
-function applyTheme(project: Project, theme: Theme): void {
-  Object.assign(project.settings, {
+function themeStyle(theme: Theme): Partial<SceneStyle> {
+  return {
     themeId: theme.id,
     font: theme.font,
     highlightFont: theme.highlightFont,
     fontSize: 100,
     highlightFontSize: FONT_CATALOG[theme.highlightFont].isCursive ? 120 : 100,
-    animation: theme.anim,
+    anim: theme.anim,
     highlightAnim: theme.anim,
     inkColor: theme.ink,
     highlightColor: theme.hl,
     uppercase: theme.up,
     shadow: theme.shadow,
-  });
+  };
 }
 
 function loadSelectedFont(
-  project: Project,
+  style: SceneStyle,
   onProjectChange: () => void,
 ): void {
   if (!document.fonts) return;
-  const fonts = [project.settings.font, project.settings.highlightFont];
+  const fonts = [style.font, style.highlightFont];
   void Promise.all(
     fonts.map((font) =>
       document.fonts.load(`${FONT_CATALOG[font].weight} 40px "${font}"`),
