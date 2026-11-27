@@ -131,12 +131,12 @@ export function drawBackground(
 
   if (theme.bg === "fumaca-prata") {
     const fogLayers = [
-      { x: 0.19, y: 0.62, radius: 0.39, phase: 0.4, speed: 0.017, alpha: 0.18 },
-      { x: 0.38, y: 0.42, radius: 0.46, phase: 1.8, speed: 0.013, alpha: 0.2 },
-      { x: 0.62, y: 0.54, radius: 0.43, phase: 3.1, speed: 0.015, alpha: 0.19 },
-      { x: 0.82, y: 0.34, radius: 0.35, phase: 4.5, speed: 0.019, alpha: 0.16 },
-      { x: 0.49, y: 0.27, radius: 0.34, phase: 5.3, speed: 0.012, alpha: 0.14 },
-      { x: 0.28, y: 0.82, radius: 0.3, phase: 2.4, speed: 0.021, alpha: 0.13 },
+      { x: 0.19, y: 0.62, radius: 0.39, phase: 0.4, speed: 0.24, alpha: 0.18 },
+      { x: 0.38, y: 0.42, radius: 0.46, phase: 1.8, speed: 0.19, alpha: 0.2 },
+      { x: 0.62, y: 0.54, radius: 0.43, phase: 3.1, speed: 0.22, alpha: 0.19 },
+      { x: 0.82, y: 0.34, radius: 0.35, phase: 4.5, speed: 0.27, alpha: 0.16 },
+      { x: 0.49, y: 0.27, radius: 0.34, phase: 5.3, speed: 0.18, alpha: 0.14 },
+      { x: 0.28, y: 0.82, radius: 0.3, phase: 2.4, speed: 0.29, alpha: 0.13 },
     ];
     ctx.save();
     ctx.globalCompositeOperation = "screen";
@@ -200,10 +200,10 @@ export function drawBackground(
     ctx.save();
     ctx.globalCompositeOperation = "screen";
     ctx.translate(width / 2, height / 2);
-    ctx.rotate(-0.2 + Math.sin(time * 0.035) * 0.025);
+    ctx.rotate(-0.2 + Math.sin(time * 0.12) * 0.025);
 
     for (let index = 0; index < 7; index += 1) {
-      const phase = time * (0.12 + index * 0.009) + index * 1.7;
+      const phase = time * (0.24 + index * 0.018) + index * 1.7;
       const centerY = (index - 3) * height * 0.2;
       const drift = Math.sin(phase) * width * 0.12;
       const amplitude = height * (0.09 + (index % 3) * 0.025);
@@ -239,7 +239,7 @@ export function drawBackground(
 
     ctx.shadowBlur = 0;
     for (let index = 0; index < 4; index += 1) {
-      const phase = time * 0.09 + index * 1.9;
+      const phase = time * 0.2 + index * 1.9;
       const x = Math.sin(phase) * width * 0.32;
       const y = Math.cos(phase * 0.8) * height * 0.22;
       const radius = maxDimension * (0.28 + (index % 2) * 0.08);
@@ -253,7 +253,7 @@ export function drawBackground(
     ctx.restore();
   } else if (theme.bg === "respingos-tinta") {
     for (const splash of inkSplashes) {
-      const drift = time * 0.11 + splash.phase;
+      const drift = time * 0.45 + splash.phase;
       const centerX =
         width * splash.x + width * 0.018 * Math.sin(drift * 0.72);
       const centerY =
@@ -319,7 +319,7 @@ export function drawBackground(
     ctx.translate(width / 2, height / 2);
     ctx.rotate((-28 * Math.PI) / 180);
     const travel = maxDimension * 0.62;
-    const offset = ((time * 17) % travel) - travel / 2;
+    const offset = ((time * 36) % travel) - travel / 2;
     for (let index = -7; index <= 7; index += 1) {
       const center = index * maxDimension * 0.24 + offset;
       const phase = time * 0.16 + index * 1.4;
@@ -357,12 +357,12 @@ export function drawBackground(
     ctx.restore();
   } else if (theme.bg === "fumaca-carmim") {
     const smokeClouds = [
-      { x: 0.26, y: 0.72, radius: 0.34, speed: 0.019, phase: 0.3 },
-      { x: 0.4, y: 0.56, radius: 0.4, speed: 0.015, phase: 1.7 },
-      { x: 0.58, y: 0.44, radius: 0.39, speed: 0.017, phase: 2.8 },
-      { x: 0.73, y: 0.28, radius: 0.31, speed: 0.021, phase: 4.1 },
-      { x: 0.5, y: 0.52, radius: 0.46, speed: 0.013, phase: 5.2 },
-      { x: 0.34, y: 0.4, radius: 0.28, speed: 0.023, phase: 3.6 },
+      { x: 0.26, y: 0.72, radius: 0.34, speed: 0.23, phase: 0.3 },
+      { x: 0.4, y: 0.56, radius: 0.4, speed: 0.19, phase: 1.7 },
+      { x: 0.58, y: 0.44, radius: 0.39, speed: 0.21, phase: 2.8 },
+      { x: 0.73, y: 0.28, radius: 0.31, speed: 0.26, phase: 4.1 },
+      { x: 0.5, y: 0.52, radius: 0.46, speed: 0.18, phase: 5.2 },
+      { x: 0.34, y: 0.4, radius: 0.28, speed: 0.28, phase: 3.6 },
     ];
     ctx.save();
     ctx.globalCompositeOperation = "screen";
@@ -409,12 +409,12 @@ export function drawBackground(
     ctx.save();
     ctx.globalCompositeOperation = "screen";
     const cloudLayers = [
-      { x: 0.18, y: 0.24, radius: 0.4, speed: 0.027, phase: 0.2, alpha: 0.16 },
-      { x: 0.76, y: 0.19, radius: 0.34, speed: 0.021, phase: 1.8, alpha: 0.14 },
-      { x: 0.46, y: 0.56, radius: 0.48, speed: 0.018, phase: 3.2, alpha: 0.13 },
-      { x: 0.12, y: 0.78, radius: 0.36, speed: 0.024, phase: 4.4, alpha: 0.12 },
-      { x: 0.86, y: 0.76, radius: 0.43, speed: 0.02, phase: 5.3, alpha: 0.14 },
-      { x: 0.59, y: 0.32, radius: 0.29, speed: 0.031, phase: 2.5, alpha: 0.11 },
+      { x: 0.18, y: 0.24, radius: 0.4, speed: 0.27, phase: 0.2, alpha: 0.16 },
+      { x: 0.76, y: 0.19, radius: 0.34, speed: 0.21, phase: 1.8, alpha: 0.14 },
+      { x: 0.46, y: 0.56, radius: 0.48, speed: 0.19, phase: 3.2, alpha: 0.13 },
+      { x: 0.12, y: 0.78, radius: 0.36, speed: 0.24, phase: 4.4, alpha: 0.12 },
+      { x: 0.86, y: 0.76, radius: 0.43, speed: 0.22, phase: 5.3, alpha: 0.14 },
+      { x: 0.59, y: 0.32, radius: 0.29, speed: 0.3, phase: 2.5, alpha: 0.11 },
     ];
     for (const [index, layer] of cloudLayers.entries()) {
       const drift = time * layer.speed + layer.phase;
@@ -456,7 +456,7 @@ export function drawBackground(
     ctx.shadowBlur = maxDimension * 0.08;
     ctx.shadowColor = hexAlpha("#6b665f", 0.22);
     for (let index = 0; index < 3; index += 1) {
-      const phase = time * 0.12 + index * 2.1;
+      const phase = time * 0.22 + index * 2.1;
       ctx.strokeStyle = hexAlpha("#77716a", 0.11);
       ctx.beginPath();
       ctx.moveTo(-width * 0.2, height * (0.25 + index * 0.24));
@@ -472,8 +472,8 @@ export function drawBackground(
     }
     ctx.restore();
     for (let index = 0; index < 3; index += 1) {
-      const x = width * (0.5 + 0.45 * Math.sin(time * 0.09 + index * 2.4));
-      const y = height * (0.5 + 0.4 * Math.cos(time * 0.08 + index * 1.8));
+      const x = width * (0.5 + 0.45 * Math.sin(time * 0.18 + index * 2.4));
+      const y = height * (0.5 + 0.4 * Math.cos(time * 0.16 + index * 1.8));
       const shade = ctx.createRadialGradient(x, y, 0, x, y, maxDimension * 0.48);
       shade.addColorStop(0, hexAlpha("#89837b", 0.13));
       shade.addColorStop(1, hexAlpha("#89837b", 0));
@@ -482,7 +482,7 @@ export function drawBackground(
     }
   } else if (theme.bg === "diagonal") {
     ctx.save();
-    ctx.translate(((time * 18) % maxDimension) - maxDimension, 0);
+    ctx.translate(((time * 60) % maxDimension) - maxDimension, 0);
     ctx.rotate(-0.45);
     if (theme.id === "coral-urbano") {
       for (let index = -4; index < 12; index += 1) {
@@ -568,11 +568,11 @@ export function drawBackground(
     ctx.save();
     if (theme.id === "brasa-intensa") {
       ctx.translate(width * 0.5, height * 0.95);
-      ctx.rotate(Math.sin(time * 0.08) * 0.08);
+      ctx.rotate(Math.sin(time * 0.18) * 0.08);
       for (let index = 0; index < 11; index += 1) {
         const angle = -Math.PI * 0.9 + (index / 10) * Math.PI * 0.8;
-        const spread = 0.025 + 0.012 * Math.sin(time * 0.18 + index);
-        ctx.fillStyle = hexAlpha(colorC, 0.035 + 0.025 * Math.sin(time * 0.15 + index));
+        const spread = 0.025 + 0.012 * Math.sin(time * 0.42 + index);
+        ctx.fillStyle = hexAlpha(colorC, 0.035 + 0.025 * Math.sin(time * 0.38 + index));
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.lineTo(Math.cos(angle - spread) * maxDimension * 1.4, Math.sin(angle - spread) * maxDimension * 1.4);
@@ -583,7 +583,7 @@ export function drawBackground(
     } else {
       ctx.translate(width / 2, height / 2);
       ctx.rotate(-0.55 + Math.sin(time * 0.045) * 0.04);
-      const offset = (time * 14) % (maxDimension * 0.24);
+      const offset = (time * 36) % (maxDimension * 0.24);
       for (let index = -6; index < 7; index += 1) {
         const x = index * maxDimension * 0.24 + offset;
         const beam = ctx.createLinearGradient(x, 0, x + maxDimension * 0.1, 0);
@@ -596,7 +596,7 @@ export function drawBackground(
     }
     ctx.restore();
   } else if (theme.bg === "carmim") {
-    const offset = (time * 3) % Math.max(8, width * 0.018);
+    const offset = (time * 7) % Math.max(8, width * 0.018);
     ctx.lineWidth = Math.max(1, width * 0.001);
     for (let x = -width * 0.02 + offset; x < width; x += Math.max(8, width * 0.018)) {
       ctx.strokeStyle = hexAlpha("#26040a", 0.13);
@@ -608,7 +608,7 @@ export function drawBackground(
     for (const star of stars) {
       const x = star.x * width;
       const y = star.y * height;
-      const alpha = 0.12 + 0.35 * Math.abs(Math.sin(time * 0.55 + star.ph));
+      const alpha = 0.12 + 0.35 * Math.abs(Math.sin(time * 0.9 + star.ph));
       ctx.fillStyle = hexAlpha("#fff0df", alpha);
       ctx.beginPath();
       ctx.arc(x, y, 0.4 + star.r * maxDimension * 0.0012, 0, Math.PI * 2);
@@ -648,13 +648,13 @@ export function drawBackground(
 
     ctx.save();
     ctx.translate(width / 2, -height * 0.12);
-    ctx.rotate(Math.sin(time * 0.05) * 0.25);
+    ctx.rotate(Math.sin(time * 0.14) * 0.25);
     for (let index = 0; index < 14; index += 1) {
       const angle = (index / 14) * Math.PI * 2;
-      const spread = 0.07 + 0.03 * Math.sin(time * 0.4 + index);
+      const spread = 0.07 + 0.03 * Math.sin(time * 0.65 + index);
       ctx.fillStyle = hexAlpha(
         colorC,
-        0.05 + 0.04 * Math.sin(time * 0.3 + index * 2),
+        0.05 + 0.04 * Math.sin(time * 0.55 + index * 2),
       );
       ctx.beginPath();
       ctx.moveTo(0, 0);
@@ -672,14 +672,14 @@ export function drawBackground(
   } else if (theme.bg === "bokeh" || theme.bg === "suave") {
     for (const particle of particles) {
       const y =
-        (((particle.y - time * (0.01 + particle.s * 0.03)) % 1 + 1) % 1) *
+        (((particle.y - time * (0.025 + particle.s * 0.035)) % 1 + 1) % 1) *
           1.2 -
         0.1;
       const x = particle.x + 0.03 * Math.sin(time * 0.3 + particle.ph);
       const radius = maxDimension * (0.02 + particle.r * 0.07);
       const alpha =
         (theme.bg === "suave" ? 0.18 : 0.28) *
-        (0.55 + 0.45 * Math.sin(time * 0.8 + particle.ph));
+        (0.55 + 0.45 * Math.sin(time * 1.2 + particle.ph));
       const glow = ctx.createRadialGradient(
         x * width,
         y * height,
@@ -710,10 +710,10 @@ export function drawBackground(
     ctx.fillRect(0, 0, width, height);
 
     for (const star of stars) {
-      const x = ((star.x + time * 0.003) % 1) * width;
+      const x = ((star.x + time * 0.008) % 1) * width;
       ctx.fillStyle = hexAlpha(
         "#ffffff",
-        0.25 + 0.6 * Math.abs(Math.sin(time * 0.9 + star.ph)),
+        0.25 + 0.6 * Math.abs(Math.sin(time * 1.1 + star.ph)),
       );
       ctx.beginPath();
       ctx.arc(x, star.y * height, 0.6 + star.r * maxDimension * 0.0016, 0, 7);
@@ -730,7 +730,7 @@ export function drawBackground(
           height * (0.55 + index * 0.1) +
             Math.sin(
               (x / width) * 6.28 * (1 + index * 0.4) +
-                time * (0.5 + index * 0.15),
+                time * (0.65 + index * 0.18),
             ) *
               height *
               0.04,

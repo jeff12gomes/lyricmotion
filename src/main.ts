@@ -758,7 +758,7 @@ async function startPreview(
         }
       }
     }
-    if (player.isPlaying || live.isActive || batch !== null) requestFrame();
+    requestFrame();
   }
 
   updatePlaybackControls();

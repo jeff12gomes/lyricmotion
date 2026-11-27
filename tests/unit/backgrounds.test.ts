@@ -27,3 +27,43 @@ describe("drawBackground color inversion", () => {
     expect(fillStyle).toBe("#00b140");
   });
 });
+
+describe("drawBackground animation", () => {
+  function drawTrace(theme: (typeof THEMES)[number], time: number): unknown[] {
+    const calls: unknown[] = [];
+    const context = new Proxy(
+      { canvas: { width: 1280, height: 720 } },
+      {
+        get(target, property, receiver) {
+          if (property in target) return Reflect.get(target, property, receiver);
+          if (
+            property === "createLinearGradient" ||
+            property === "createRadialGradient"
+          ) {
+            return (...args: number[]) => {
+              calls.push([property, ...args]);
+              return {
+                addColorStop: (...stopArgs: [number, string]) =>
+                  calls.push(["addColorStop", ...stopArgs]),
+              };
+            };
+          }
+          return (...args: unknown[]) => calls.push([property, ...args]);
+        },
+        set(target, property, value, receiver) {
+          if (typeof value !== "object") calls.push(["set", property, value]);
+          return Reflect.set(target, property, value, receiver);
+        },
+      },
+    ) as unknown as CanvasRenderingContext2D;
+
+    drawBackground(context, time, theme);
+    return calls;
+  }
+
+  it("changes the rendered background over a short scene for every animated theme", () => {
+    for (const theme of THEMES.filter(({ bg }) => bg !== "chapado")) {
+      expect(drawTrace(theme, 0), theme.name).not.toEqual(drawTrace(theme, 4));
+    }
+  });
+});
