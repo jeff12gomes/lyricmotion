@@ -68,7 +68,13 @@ export type ThemeBackground =
   | "bordas"
   | "liquido"
   | "feixes"
-  | "carmim";
+  | "carmim"
+  | "nuvens-azuis"
+  | "fumaca-carmim"
+  | "feixes-brasa"
+  | "respingos-tinta"
+  | "seda-fogo"
+  | "fumaca-prata";
 
 export interface Scene {
   text: string;
@@ -141,6 +147,7 @@ export interface Theme {
   ink: string;
   hl: string;
   anim: Animation;
+  highlightAnim?: Animation;
   up: boolean;
   shadow: boolean;
 }

@@ -16,6 +16,14 @@ interface Star {
   ph: number;
 }
 
+interface InkSplash {
+  x: number;
+  y: number;
+  radius: number;
+  phase: number;
+  satellites: Array<{ angle: number; distance: number; radius: number }>;
+}
+
 let seed = 7;
 
 function random(): number {
@@ -36,6 +44,18 @@ const stars: Star[] = Array.from({ length: 240 }, () => ({
   y: random(),
   r: random(),
   ph: random() * 6.28,
+}));
+
+const inkSplashes: InkSplash[] = Array.from({ length: 9 }, () => ({
+  x: 0.08 + random() * 0.84,
+  y: 0.08 + random() * 0.84,
+  radius: 0.035 + random() * 0.055,
+  phase: random() * Math.PI * 2,
+  satellites: Array.from({ length: 7 }, () => ({
+    angle: random() * Math.PI * 2,
+    distance: 0.9 + random() * 1.8,
+    radius: 0.035 + random() * 0.12,
+  })),
 }));
 
 function hexAlpha(hex: string, alpha: number): string {
@@ -67,7 +87,14 @@ export function drawBackground(
   gradient.addColorStop(0, colorA);
   gradient.addColorStop(1, colorB);
   ctx.fillStyle =
-    theme.bg === "aurora" || theme.bg === "raios" ? colorA : gradient;
+    theme.bg === "aurora" ||
+    theme.bg === "raios" ||
+    theme.bg === "fumaca-carmim" ||
+    theme.bg === "feixes-brasa" ||
+    theme.bg === "seda-fogo" ||
+    theme.bg === "fumaca-prata"
+      ? colorA
+      : gradient;
   ctx.fillRect(0, 0, width, height);
 
   ctx.globalCompositeOperation =
@@ -76,11 +103,332 @@ export function drawBackground(
     theme.bg === "diagonal" ||
     theme.bg === "bordas" ||
     theme.bg === "liquido" ||
-    theme.bg === "carmim"
+    theme.bg === "carmim" ||
+    theme.bg === "respingos-tinta"
       ? "source-over"
       : "lighter";
 
-  if (theme.bg === "seda") {
+  if (theme.bg === "fumaca-prata") {
+    const fogLayers = [
+      { x: 0.19, y: 0.62, radius: 0.39, phase: 0.4, speed: 0.017, alpha: 0.18 },
+      { x: 0.38, y: 0.42, radius: 0.46, phase: 1.8, speed: 0.013, alpha: 0.2 },
+      { x: 0.62, y: 0.54, radius: 0.43, phase: 3.1, speed: 0.015, alpha: 0.19 },
+      { x: 0.82, y: 0.34, radius: 0.35, phase: 4.5, speed: 0.019, alpha: 0.16 },
+      { x: 0.49, y: 0.27, radius: 0.34, phase: 5.3, speed: 0.012, alpha: 0.14 },
+      { x: 0.28, y: 0.82, radius: 0.3, phase: 2.4, speed: 0.021, alpha: 0.13 },
+    ];
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    for (const [index, layer] of fogLayers.entries()) {
+      const phase = time * layer.speed + layer.phase;
+      const x =
+        width *
+        (layer.x + 0.085 * Math.sin(phase) + 0.022 * Math.sin(phase * 0.43));
+      const y =
+        height *
+        (layer.y + 0.065 * Math.cos(phase * 0.72) + 0.018 * Math.sin(phase));
+      const radius = maxDimension * layer.radius;
+      const cloud = ctx.createRadialGradient(
+        x,
+        y,
+        radius * 0.025,
+        x,
+        y,
+        radius,
+      );
+      cloud.addColorStop(0, hexAlpha(colorC, layer.alpha));
+      cloud.addColorStop(0.35, hexAlpha(colorC, layer.alpha * 0.7));
+      cloud.addColorStop(0.72, hexAlpha(colorB, layer.alpha * 0.72));
+      cloud.addColorStop(1, hexAlpha(colorA, 0));
+      ctx.fillStyle = cloud;
+      ctx.fillRect(0, 0, width, height);
+
+      const wispX = x + Math.sin(phase * 0.58 + index) * radius * 0.32;
+      const wispY = y + Math.cos(phase * 0.49 + index) * radius * 0.2;
+      const wispRadius = radius * 0.66;
+      const wisp = ctx.createRadialGradient(
+        wispX,
+        wispY,
+        0,
+        wispX,
+        wispY,
+        wispRadius,
+      );
+      wisp.addColorStop(0, hexAlpha(colorC, layer.alpha * 0.34));
+      wisp.addColorStop(0.5, hexAlpha(colorB, layer.alpha * 0.24));
+      wisp.addColorStop(1, hexAlpha(colorB, 0));
+      ctx.fillStyle = wisp;
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    const centerGlow = ctx.createRadialGradient(
+      width * 0.5,
+      height * 0.49,
+      maxDimension * 0.04,
+      width * 0.5,
+      height * 0.49,
+      maxDimension * 0.61,
+    );
+    centerGlow.addColorStop(0, hexAlpha(colorC, 0.12));
+    centerGlow.addColorStop(0.48, hexAlpha(colorB, 0.08));
+    centerGlow.addColorStop(1, hexAlpha(colorA, 0));
+    ctx.fillStyle = centerGlow;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  } else if (theme.bg === "seda-fogo") {
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    ctx.translate(width / 2, height / 2);
+    ctx.rotate(-0.2 + Math.sin(time * 0.035) * 0.025);
+
+    for (let index = 0; index < 7; index += 1) {
+      const phase = time * (0.12 + index * 0.009) + index * 1.7;
+      const centerY = (index - 3) * height * 0.2;
+      const drift = Math.sin(phase) * width * 0.12;
+      const amplitude = height * (0.09 + (index % 3) * 0.025);
+      const bandWidth = maxDimension * (0.09 + (index % 2) * 0.045);
+      const band = ctx.createLinearGradient(
+        0,
+        centerY - bandWidth,
+        0,
+        centerY + bandWidth,
+      );
+      band.addColorStop(0, hexAlpha(colorB, 0));
+      band.addColorStop(0.28, hexAlpha(colorB, 0.08));
+      band.addColorStop(0.5, hexAlpha(colorC, 0.19));
+      band.addColorStop(0.72, hexAlpha(colorB, 0.09));
+      band.addColorStop(1, hexAlpha(colorB, 0));
+      ctx.strokeStyle = band;
+      ctx.lineWidth = bandWidth * 2;
+      ctx.lineCap = "round";
+      ctx.shadowColor = hexAlpha(colorC, 0.22);
+      ctx.shadowBlur = maxDimension * 0.055;
+      ctx.beginPath();
+      ctx.moveTo(-width * 0.78, centerY + drift * 0.2);
+      ctx.bezierCurveTo(
+        -width * 0.38 + drift,
+        centerY - amplitude,
+        width * 0.18 - drift * 0.55,
+        centerY + amplitude,
+        width * 0.78 + drift * 0.35,
+        centerY - drift * 0.15,
+      );
+      ctx.stroke();
+    }
+
+    ctx.shadowBlur = 0;
+    for (let index = 0; index < 4; index += 1) {
+      const phase = time * 0.09 + index * 1.9;
+      const x = Math.sin(phase) * width * 0.32;
+      const y = Math.cos(phase * 0.8) * height * 0.22;
+      const radius = maxDimension * (0.28 + (index % 2) * 0.08);
+      const glow = ctx.createRadialGradient(x, y, 0, x, y, radius);
+      glow.addColorStop(0, hexAlpha(index % 2 ? colorC : colorB, 0.16));
+      glow.addColorStop(0.52, hexAlpha(colorB, 0.07));
+      glow.addColorStop(1, hexAlpha(colorA, 0));
+      ctx.fillStyle = glow;
+      ctx.fillRect(-width / 2, -height / 2, width, height);
+    }
+    ctx.restore();
+  } else if (theme.bg === "respingos-tinta") {
+    for (const splash of inkSplashes) {
+      const drift = time * 0.11 + splash.phase;
+      const centerX =
+        width * splash.x + width * 0.018 * Math.sin(drift * 0.72);
+      const centerY =
+        height * splash.y + height * 0.016 * Math.cos(drift);
+      const radius = maxDimension * splash.radius;
+      const halo = ctx.createRadialGradient(
+        centerX,
+        centerY,
+        radius * 0.08,
+        centerX,
+        centerY,
+        radius * 2.4,
+      );
+      halo.addColorStop(0, hexAlpha(colorC, 0.16));
+      halo.addColorStop(1, hexAlpha(colorC, 0));
+      ctx.fillStyle = halo;
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(0.08 * Math.sin(drift * 0.65));
+      ctx.beginPath();
+      const points = 20;
+      for (let point = 0; point < points; point += 1) {
+        const angle = (point / points) * Math.PI * 2;
+        const irregularity =
+          0.76 +
+          0.16 * Math.sin(angle * 3 + splash.phase) +
+          0.09 * Math.cos(angle * 5 - splash.phase * 0.7);
+        const wobble = 1 + 0.06 * Math.sin(drift + point * 0.8);
+        const x = Math.cos(angle) * radius * irregularity * wobble;
+        const y = Math.sin(angle) * radius * irregularity * wobble;
+        if (point === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = hexAlpha(colorC, 0.78);
+      ctx.fill();
+
+      for (const drop of splash.satellites) {
+        const dropX = Math.cos(drop.angle) * radius * drop.distance;
+        const dropY =
+          Math.sin(drop.angle) * radius * drop.distance +
+          Math.sin(drift + drop.angle) * radius * 0.07;
+        const dropRadius = radius * drop.radius;
+        ctx.beginPath();
+        ctx.ellipse(
+          dropX,
+          dropY,
+          dropRadius * 0.72,
+          dropRadius * 1.35,
+          drop.angle + Math.PI / 2,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fillStyle = hexAlpha(colorC, 0.72);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  } else if (theme.bg === "feixes-brasa") {
+    ctx.save();
+    ctx.translate(width / 2, height / 2);
+    ctx.rotate((-28 * Math.PI) / 180);
+    const travel = maxDimension * 0.62;
+    const offset = ((time * 17) % travel) - travel / 2;
+    for (let index = -7; index <= 7; index += 1) {
+      const center = index * maxDimension * 0.24 + offset;
+      const phase = time * 0.16 + index * 1.4;
+      const beamWidth =
+        maxDimension * (0.105 + 0.025 * (0.5 + 0.5 * Math.sin(phase)));
+      const left = center - beamWidth / 2;
+      const right = center + beamWidth / 2;
+      const beam = ctx.createLinearGradient(left, 0, right, 0);
+      beam.addColorStop(0, hexAlpha(colorB, 0));
+      beam.addColorStop(0.22, hexAlpha(colorB, 0.035));
+      beam.addColorStop(0.5, hexAlpha(colorC, 0.19));
+      beam.addColorStop(0.78, hexAlpha(colorB, 0.06));
+      beam.addColorStop(1, hexAlpha(colorB, 0));
+      ctx.fillStyle = beam;
+      ctx.fillRect(left, -maxDimension * 1.8, beamWidth, maxDimension * 3.6);
+
+      const coreWidth = beamWidth * 0.28;
+      const core = ctx.createLinearGradient(
+        center - coreWidth,
+        0,
+        center + coreWidth,
+        0,
+      );
+      core.addColorStop(0, hexAlpha(colorC, 0));
+      core.addColorStop(0.5, hexAlpha(colorC, 0.2));
+      core.addColorStop(1, hexAlpha(colorC, 0));
+      ctx.fillStyle = core;
+      ctx.fillRect(
+        center - coreWidth,
+        -maxDimension * 1.8,
+        coreWidth * 2,
+        maxDimension * 3.6,
+      );
+    }
+    ctx.restore();
+  } else if (theme.bg === "fumaca-carmim") {
+    const smokeClouds = [
+      { x: 0.26, y: 0.72, radius: 0.34, speed: 0.019, phase: 0.3 },
+      { x: 0.4, y: 0.56, radius: 0.4, speed: 0.015, phase: 1.7 },
+      { x: 0.58, y: 0.44, radius: 0.39, speed: 0.017, phase: 2.8 },
+      { x: 0.73, y: 0.28, radius: 0.31, speed: 0.021, phase: 4.1 },
+      { x: 0.5, y: 0.52, radius: 0.46, speed: 0.013, phase: 5.2 },
+      { x: 0.34, y: 0.4, radius: 0.28, speed: 0.023, phase: 3.6 },
+    ];
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    ctx.translate(width / 2, height / 2);
+    ctx.rotate(Math.sin(time * 0.035) * 0.018);
+    for (const [index, cloudLayer] of smokeClouds.entries()) {
+      const phase = time * cloudLayer.speed + cloudLayer.phase;
+      const x =
+        (cloudLayer.x - 0.5 + 0.045 * Math.sin(phase)) * width;
+      const y =
+        (cloudLayer.y - 0.5 + 0.055 * Math.cos(phase * 0.8)) * height;
+      const radius = maxDimension * cloudLayer.radius;
+      const cloud = ctx.createRadialGradient(
+        x,
+        y,
+        radius * 0.025,
+        x,
+        y,
+        radius,
+      );
+      cloud.addColorStop(0, hexAlpha(colorC, index % 2 === 0 ? 0.2 : 0.15));
+      cloud.addColorStop(0.28, hexAlpha(colorC, 0.12));
+      cloud.addColorStop(0.66, hexAlpha(colorB, 0.18));
+      cloud.addColorStop(1, hexAlpha(colorB, 0));
+      ctx.fillStyle = cloud;
+      ctx.fillRect(-width / 2, -height / 2, width, height);
+    }
+
+    const heartGlow = ctx.createRadialGradient(
+      0,
+      0,
+      maxDimension * 0.04,
+      0,
+      0,
+      maxDimension * 0.47,
+    );
+    heartGlow.addColorStop(0, hexAlpha(colorC, 0.15));
+    heartGlow.addColorStop(0.45, hexAlpha(colorB, 0.12));
+    heartGlow.addColorStop(1, hexAlpha(colorA, 0));
+    ctx.fillStyle = heartGlow;
+    ctx.fillRect(-width / 2, -height / 2, width, height);
+    ctx.restore();
+  } else if (theme.bg === "nuvens-azuis") {
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    const cloudLayers = [
+      { x: 0.18, y: 0.24, radius: 0.4, speed: 0.027, phase: 0.2, alpha: 0.16 },
+      { x: 0.76, y: 0.19, radius: 0.34, speed: 0.021, phase: 1.8, alpha: 0.14 },
+      { x: 0.46, y: 0.56, radius: 0.48, speed: 0.018, phase: 3.2, alpha: 0.13 },
+      { x: 0.12, y: 0.78, radius: 0.36, speed: 0.024, phase: 4.4, alpha: 0.12 },
+      { x: 0.86, y: 0.76, radius: 0.43, speed: 0.02, phase: 5.3, alpha: 0.14 },
+      { x: 0.59, y: 0.32, radius: 0.29, speed: 0.031, phase: 2.5, alpha: 0.11 },
+    ];
+    for (const [index, layer] of cloudLayers.entries()) {
+      const drift = time * layer.speed + layer.phase;
+      const x =
+        width *
+        (layer.x + 0.11 * Math.sin(drift) + 0.035 * Math.sin(drift * 0.43));
+      const y =
+        height *
+        (layer.y + 0.085 * Math.cos(drift * 0.72) + 0.025 * Math.sin(drift));
+      const radius = maxDimension * layer.radius;
+      const cloud = ctx.createRadialGradient(x, y, radius * 0.04, x, y, radius);
+      cloud.addColorStop(0, hexAlpha(colorC, layer.alpha));
+      cloud.addColorStop(0.42, hexAlpha(colorB, layer.alpha * 0.62));
+      cloud.addColorStop(1, hexAlpha(colorA, 0));
+      ctx.fillStyle = cloud;
+      ctx.fillRect(0, 0, width, height);
+
+      const wispX = width * (layer.x + 0.12 * Math.sin(drift * 0.66 + index));
+      const wispY = height * (layer.y + 0.1 * Math.cos(drift * 0.55 + index));
+      const wispRadius = radius * 0.58;
+      const wisp = ctx.createRadialGradient(
+        wispX,
+        wispY,
+        0,
+        wispX,
+        wispY,
+        wispRadius,
+      );
+      wisp.addColorStop(0, hexAlpha(colorB, layer.alpha * 0.35));
+      wisp.addColorStop(1, hexAlpha(colorB, 0));
+      ctx.fillStyle = wisp;
+      ctx.fillRect(0, 0, width, height);
+    }
+    ctx.restore();
+  } else if (theme.bg === "seda") {
     ctx.save();
     ctx.lineCap = "round";
     ctx.lineWidth = maxDimension * 0.12;
@@ -373,7 +721,10 @@ export function drawBackground(
   }
 
   ctx.globalCompositeOperation = "source-over";
-  if (theme.bg !== "suave") {
+  if (
+    theme.bg !== "suave" &&
+    theme.bg !== "respingos-tinta"
+  ) {
     const paletteLuminance =
       [colorA, colorB, colorC].reduce((total, color) => {
         const red = Number.parseInt(color.slice(1, 3), 16) / 255;

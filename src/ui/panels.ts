@@ -775,7 +775,7 @@ function themeStyle(theme: Theme): Partial<SceneStyle> {
     fontSize: 100,
     highlightFontSize: FONT_CATALOG[theme.highlightFont].isCursive ? 120 : 100,
     anim: theme.anim,
-    highlightAnim: theme.anim,
+    highlightAnim: theme.highlightAnim ?? theme.anim,
     inkColor: theme.ink,
     highlightColor: theme.hl,
     uppercase: theme.up,
