@@ -27,10 +27,23 @@ describe("project state", () => {
     const project = createDefaultProject();
     project.title = "Canção de teste";
     project.lyrics = "linha 1\nlinha 2\n\nlinha 3\n\nlinha 4\nlinha 5";
+    project.settings.highlightFont = "Great Vibes";
 
     saveProject(project);
 
     expect(data.get(STORAGE_KEY)).toBe(JSON.stringify(project));
+    expect(loadProject()).toEqual(project);
+  });
+
+  it("adds the theme highlight font when loading a project saved before the setting existed", () => {
+    const project = createDefaultProject();
+    project.settings.themeId = "sublime";
+    project.settings.font = "Anton";
+    project.settings.highlightFont = "Dancing Script";
+    const { highlightFont: _highlightFont, ...legacySettings } = project.settings;
+    const legacyProject = { ...project, settings: legacySettings };
+    stubStorage({ [STORAGE_KEY]: JSON.stringify(legacyProject) });
+
     expect(loadProject()).toEqual(project);
   });
 

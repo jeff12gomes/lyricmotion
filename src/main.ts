@@ -319,8 +319,10 @@ async function startPreview(): Promise<void> {
 
   if (document.fonts) {
     await document.fonts.ready;
-    await document.fonts.load(
-      `${FONTS[project.settings.font]} 40px "${project.settings.font}"`,
+    await Promise.all(
+      [project.settings.font, project.settings.highlightFont].map((font) =>
+        document.fonts.load(`${FONTS[font]} 40px "${font}"`),
+      ),
     );
   }
 

@@ -39,6 +39,7 @@ export interface Scene {
 export interface Settings {
   themeId: string;
   font: FontFamily;
+  highlightFont: FontFamily;
   animation: Animation;
   position: Position;
   inkColor: string;

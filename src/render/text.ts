@@ -1,17 +1,26 @@
 import { parseHighlightLines } from "../scenes";
-import type { Project, Scene } from "../types";
+import type { FontFamily, Project, Scene } from "../types";
 import { FONTS } from "./themes";
 
 interface LayoutWord {
   text: string;
   width: number;
+  spaceAfter: number;
   highlighted: boolean;
+  font: FontFamily;
+  weight: number;
+  size: number;
 }
 
 interface TextLayout {
   lines: LayoutWord[][];
-  spaceWidth: number;
 }
+
+const HANDWRITTEN_FONTS: FontFamily[] = [
+  "Dancing Script",
+  "Great Vibes",
+  "Caveat",
+];
 
 function clamp(value: number): number {
   return Math.min(1, Math.max(0, value));
@@ -24,15 +33,13 @@ function ease(value: number): number {
 function layoutText(
   ctx: CanvasRenderingContext2D,
   text: string,
-  font: string,
-  weight: number,
+  project: Project,
   size: number,
   maxWidth: number,
 ): TextLayout {
-  ctx.font = `${weight} ${size}px "${font}"`;
-  const spaceWidth = ctx.measureText(" ").width;
   const lines: LayoutWord[][] = [[]];
   let lineWidth = 0;
+  const { settings } = project;
 
   for (const row of parseHighlightLines(text)) {
     if (lines[lines.length - 1].length) {
@@ -41,21 +48,39 @@ function layoutText(
     }
 
     for (const word of row) {
-      const width = ctx.measureText(word.text).width;
-      if (lineWidth > 0 && lineWidth + spaceWidth + width > maxWidth) {
+      const font = word.highlighted ? settings.highlightFont : settings.font;
+      const handwritten =
+        word.highlighted && HANDWRITTEN_FONTS.includes(settings.highlightFont);
+      const wordSize = size * (handwritten ? 1.25 : 1);
+      const wordText =
+        settings.uppercase && !handwritten ? word.text.toUpperCase() : word.text;
+      ctx.font = `${FONTS[font]} ${wordSize}px "${font}"`;
+      const spaceAfter = ctx.measureText(" ").width;
+      const wordWidth = ctx.measureText(wordText).width;
+      const currentLine = lines[lines.length - 1];
+      const precedingSpace = currentLine.length
+        ? currentLine[currentLine.length - 1].spaceAfter
+        : 0;
+      if (lineWidth > 0 && lineWidth + precedingSpace + wordWidth > maxWidth) {
         lines.push([]);
         lineWidth = 0;
       }
-      lines[lines.length - 1].push({
-        text: word.text,
-        width,
+      const line = lines[lines.length - 1];
+      if (line.length) lineWidth += line[line.length - 1].spaceAfter;
+      line.push({
+        text: wordText,
+        width: wordWidth,
+        spaceAfter,
         highlighted: word.highlighted,
+        font,
+        weight: FONTS[font],
+        size: wordSize,
       });
-      lineWidth += (lineWidth ? spaceWidth : 0) + width;
+      lineWidth += wordWidth;
     }
   }
 
-  return { lines: lines.filter((line) => line.length), spaceWidth };
+  return { lines: lines.filter((line) => line.length) };
 }
 
 export function drawText(
@@ -68,16 +93,14 @@ export function drawText(
   const { settings } = project;
   const width = ctx.canvas.width;
   const height = ctx.canvas.height;
-  const text = settings.uppercase ? scene.text.toUpperCase() : scene.text;
   let size = Math.min(height * 0.085, width * 0.062) * (scene.title ? 1.3 : 1);
-  let layout: TextLayout = { lines: [], spaceWidth: 0 };
+  let layout: TextLayout = { lines: [] };
 
   for (let attempt = 0; attempt < 7; attempt += 1) {
     layout = layoutText(
       ctx,
-      text,
-      settings.font,
-      FONTS[settings.font],
+      scene.text,
+      project,
       size,
       width * 0.84,
     );
@@ -109,14 +132,16 @@ export function drawText(
 
   let wordIndex = 0;
   layout.lines.forEach((line, lineIndex) => {
-    const lineWidth =
-      line.reduce((sum, word) => sum + word.width, 0) +
-      layout.spaceWidth * (line.length - 1);
+    const lineWidth = line.reduce(
+      (sum, word, index) =>
+        sum + word.width + (index < line.length - 1 ? word.spaceAfter : 0),
+      0,
+    );
     let x = width / 2 - lineWidth / 2;
     const y =
       centerY - totalHeight / 2 + lineHeight / 2 + lineIndex * lineHeight;
 
-    for (const word of line) {
+    for (const [wordLineIndex, word] of line.entries()) {
       let progress: number;
       let offsetY = 0;
       if (settings.animation === "palavras") {
@@ -130,11 +155,12 @@ export function drawText(
       }
 
       ctx.globalAlpha = alpha * progress;
+      ctx.font = `${word.weight} ${word.size}px "${word.font}"`;
       ctx.fillStyle = word.highlighted
         ? settings.highlightColor
         : settings.inkColor;
       ctx.fillText(word.text, x, y + offsetY);
-      x += word.width + layout.spaceWidth;
+      x += word.width + (wordLineIndex < line.length - 1 ? word.spaceAfter : 0);
       wordIndex += 1;
     }
   });

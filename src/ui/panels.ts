@@ -17,6 +17,11 @@ const FONT_OPTIONS: FontFamily[] = [
   "Playfair Display",
   "Lora",
   "Bebas Neue",
+  "Anton",
+  "Oswald",
+  "Dancing Script",
+  "Great Vibes",
+  "Caveat",
 ];
 const ANIMATION_OPTIONS: Animation[] = ["subir", "palavras", "zoom"];
 const POSITION_OPTIONS: Position[] = ["centro", "baixo"];
@@ -74,6 +79,8 @@ export function mountPanels(
   const lyricsInput = getElement<HTMLTextAreaElement>("#lyrics");
   const themeGrid = getElement<HTMLDivElement>("#themes");
   const fontSelect = getElement<HTMLSelectElement>("#font");
+  const highlightFontSelect =
+    getElement<HTMLSelectElement>("#highlightFont");
   const animationSelect = getElement<HTMLSelectElement>("#anim");
   const positionSelect = getElement<HTMLSelectElement>("#pos");
   const inkInput = getElement<HTMLInputElement>("#ink");
@@ -97,6 +104,11 @@ export function mountPanels(
     option.value = font;
     option.textContent = font;
     fontSelect.append(option);
+
+    const highlightOption = document.createElement("option");
+    highlightOption.value = font;
+    highlightOption.textContent = font;
+    highlightFontSelect.append(highlightOption);
   }
 
   function updateThemeButtons(): void {
@@ -110,6 +122,7 @@ export function mountPanels(
 
   function syncSettings(): void {
     fontSelect.value = project.settings.font;
+    highlightFontSelect.value = project.settings.highlightFont;
     animationSelect.value = project.settings.animation;
     positionSelect.value = project.settings.position;
     inkInput.value = project.settings.inkColor;
@@ -182,6 +195,15 @@ export function mountPanels(
     const font = FONT_OPTIONS.find((candidate) => candidate === fontSelect.value);
     if (!font) return;
     project.settings.font = font;
+    commit();
+    loadSelectedFont(project, onProjectChange);
+  });
+  highlightFontSelect.addEventListener("change", () => {
+    const font = FONT_OPTIONS.find(
+      (candidate) => candidate === highlightFontSelect.value,
+    );
+    if (!font) return;
+    project.settings.highlightFont = font;
     commit();
     loadSelectedFont(project, onProjectChange);
   });
@@ -365,6 +387,7 @@ function applyTheme(project: Project, theme: Theme): void {
   Object.assign(project.settings, {
     themeId: theme.id,
     font: theme.font,
+    highlightFont: theme.highlightFont,
     animation: theme.anim,
     inkColor: theme.ink,
     highlightColor: theme.hl,
@@ -378,8 +401,9 @@ function loadSelectedFont(
   onProjectChange: () => void,
 ): void {
   if (!document.fonts) return;
-  const font = project.settings.font;
-  void document.fonts
-    .load(`${FONTS[font]} 40px "${font}"`)
+  const fonts = [project.settings.font, project.settings.highlightFont];
+  void Promise.all(
+    fonts.map((font) => document.fonts.load(`${FONTS[font]} 40px "${font}"`)),
+  )
     .then(onProjectChange, onProjectChange);
 }

@@ -23,16 +23,16 @@ const SAMPLE_LYRICS = [
 const animations: Animation[] = ["subir", "palavras", "zoom"];
 const positions: Position[] = ["centro", "baixo"];
 const fonts: FontFamily[] = [
-  "Anton",
-  "Caveat",
-  "Dancing Script",
-  "Great Vibes",
   "Montserrat",
-  "Oswald",
   "Poppins",
   "Playfair Display",
   "Lora",
   "Bebas Neue",
+  "Anton",
+  "Oswald",
+  "Dancing Script",
+  "Great Vibes",
+  "Caveat",
 ];
 const resolutions: Resolution[] = [
   "1920x1080",
@@ -49,6 +49,7 @@ export function createDefaultProject(): Project {
     settings: {
       themeId: "aurora",
       font: "Montserrat",
+      highlightFont: "Poppins",
       animation: "subir",
       position: "centro",
       inkColor: "#ffffff",
@@ -79,6 +80,7 @@ function isSettings(value: unknown): value is Settings {
     typeof value.themeId === "string" &&
     THEMES.some((theme) => theme.id === value.themeId) &&
     isOneOf(value.font, fonts) &&
+    isOneOf(value.highlightFont, fonts) &&
     isOneOf(value.animation, animations) &&
     isOneOf(value.position, positions) &&
     typeof value.inkColor === "string" &&
@@ -112,6 +114,7 @@ function sanitizeProject(value: Project & Record<string, unknown>): Project {
     settings: {
       themeId: settings.themeId,
       font: settings.font,
+      highlightFont: settings.highlightFont,
       animation: settings.animation,
       position: settings.position,
       inkColor: settings.inkColor,
@@ -124,12 +127,26 @@ function sanitizeProject(value: Project & Record<string, unknown>): Project {
   };
 }
 
+function migrateProject(value: unknown): unknown {
+  if (!isRecord(value) || !isRecord(value.settings)) return value;
+  const settings = value.settings;
+  if ("highlightFont" in settings) return value;
+
+  const theme = THEMES.find(({ id }) => id === settings.themeId);
+  if (!theme) return value;
+
+  return {
+    ...value,
+    settings: { ...settings, highlightFont: theme.highlightFont },
+  };
+}
+
 export function loadProject(): Project {
   try {
     const stored = globalThis.localStorage.getItem(STORAGE_KEY);
     if (stored === null) return createDefaultProject();
 
-    const project: unknown = JSON.parse(stored);
+    const project = migrateProject(JSON.parse(stored));
     return isProject(project)
       ? sanitizeProject(project)
       : createDefaultProject();

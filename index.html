@@ -90,18 +90,24 @@
           <div id="themes" class="themes" aria-label="Temas"></div>
           <div class="row">
             <div>
-              <label for="font">Fonte</label>
+              <label for="font">Fonte principal</label>
               <select id="font"></select>
             </div>
             <div>
-              <label for="anim">Animação</label>
-              <select id="anim">
-                <option value="subir">Subir suave</option>
-                <option value="palavras">Palavra por palavra</option>
-                <option value="zoom">Aproximar</option>
-              </select>
+              <label for="highlightFont">Fonte do destaque (palavras com * *)</label>
+              <select id="highlightFont"></select>
             </div>
           </div>
+          <p class="hint">
+            Dica: coloque *asteriscos* em qualquer palavra da letra para aplicar
+            a segunda fonte e a cor de destaque.
+          </p>
+          <label for="anim">Animação</label>
+          <select id="anim">
+            <option value="subir">Subir suave</option>
+            <option value="palavras">Palavra por palavra</option>
+            <option value="zoom">Aproximar</option>
+          </select>
           <label for="pos">Posição do texto</label>
           <select id="pos">
             <option value="centro">Centro</option>
