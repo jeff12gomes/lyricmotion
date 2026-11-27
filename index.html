@@ -14,7 +14,25 @@
   </head>
   <body>
     <main id="app">
-      <section id="dashboardView" class="dashboard-view">
+      <section id="homeView" class="home-view"></section>
+      <header id="appHeader" class="app-header" hidden>
+        <a
+          id="appHeaderBrand"
+          class="app-header-brand"
+          href="#home"
+          aria-label="LyricMotion. Ir para início"
+        >LyricMotion<span>.</span></a>
+        <nav class="app-header-actions" aria-label="Navegação da conta">
+          <button id="appHeaderBack" class="app-header-back" type="button">
+            ← Voltar
+          </button>
+          <span id="appHeaderUser" class="app-header-user"></span>
+          <button id="appHeaderLogout" class="app-header-logout" type="button">
+            Sair
+          </button>
+        </nav>
+      </header>
+      <section id="dashboardView" class="dashboard-view" hidden>
         <p id="dashboardStatus" class="dashboard-status" role="status" aria-live="polite"></p>
       </section>
       <div id="editorView" hidden>

@@ -4,16 +4,23 @@ import {
   createDefaultProject,
   getEffectiveStyle,
   isSceneStyleCustomized,
+  loadAuthState,
   loadLibrary,
   loadProject,
+  loginWithEmail,
+  loginWithGoogle,
+  logoutUser,
+  registerWithEmail,
   restoreSceneStyle,
   saveProject,
   saveProjectToLibrary,
   saveUserName,
+  updateCurrentUserProfile,
 } from "../../src/state";
 
 const STORAGE_KEY = "lyricmotion:projeto:v1";
 const LIBRARY_STORAGE_KEY = "lyricmotion:biblioteca:v1";
+const AUTH_STORAGE_KEY = "lyricmotion:auth:v1";
 
 function stubStorage(initial: Record<string, string> = {}) {
   const data = new Map(Object.entries(initial));
@@ -392,5 +399,127 @@ describe("project state", () => {
       userName: "Ana",
       projects: library.projects,
     });
+  });
+
+  it("seeds the demo account and starts a passwordless current-user session", async () => {
+    const { data } = stubStorage();
+    const initial = loadAuthState();
+    expect(initial.currentUser).toBeNull();
+    expect(initial.users.some(({ email }) => email === "teste@lyricmotion.com"))
+      .toBe(true);
+
+    const user = await loginWithEmail(" TESTE@lyricmotion.com ", "123456");
+    expect(user.email).toBe("teste@lyricmotion.com");
+    expect(user.password).toBeUndefined();
+    expect(loadAuthState().currentUser).toMatchObject({ id: user.id });
+    expect(data.get(AUTH_STORAGE_KEY)).toContain("pbkdf2-sha256");
+  });
+
+  it("registers an email account, hashes its password, and rejects duplicate email", async () => {
+    const { data } = stubStorage();
+    const user = await registerWithEmail(
+      " Maria Silva ",
+      "Igreja Central",
+      "Maria@exemplo.com",
+      "senha123",
+    );
+
+    expect(user).toMatchObject({
+      name: "Maria Silva",
+      church: "Igreja Central",
+      email: "maria@exemplo.com",
+      provider: "email",
+    });
+    expect(user.password).toBeUndefined();
+    const storedAuth = JSON.parse(data.get(AUTH_STORAGE_KEY) ?? "{}");
+    const savedAccount = storedAuth.users.find(
+      ({ id }: { id: string }) => id === user.id,
+    );
+    expect(savedAccount.password).toMatch(/^pbkdf2-sha256\$/);
+    expect(savedAccount.password).not.toContain("senha123");
+    await expect(
+      registerWithEmail("Outra pessoa", "", "MARIA@EXEMPLO.COM", "senha456"),
+    ).rejects.toThrow("Já existe uma conta");
+    await expect(loginWithEmail(user.email, "senha errada")).rejects.toThrow(
+      "E-mail ou senha incorretos",
+    );
+    expect((await loginWithEmail(user.email, "senha123")).id).toBe(user.id);
+  });
+
+  it("validates required fields and email format", async () => {
+    stubStorage();
+    await expect(registerWithEmail("", "", "", "")).rejects.toThrow(
+      "Preencha nome, e-mail e senha",
+    );
+    await expect(
+      registerWithEmail("Ana", "", "email-inválido", "senha123"),
+    ).rejects.toThrow("e-mail válido");
+    await expect(loginWithEmail("", "")).rejects.toThrow(
+      "Informe seu e-mail e sua senha",
+    );
+  });
+
+  it("simulates Google sign-in by creating and reusing a Google account", () => {
+    stubStorage();
+    const first = loginWithGoogle("João", "joao@gmail.com");
+    const second = loginWithGoogle("Outro nome", "JOAO@gmail.com");
+
+    expect(first).toMatchObject({
+      name: "João",
+      email: "joao@gmail.com",
+      provider: "google",
+    });
+    expect(first.id).toBe(second.id);
+    expect(loadAuthState().users.filter(({ provider }) => provider === "google"))
+      .toHaveLength(1);
+    logoutUser();
+    expect(loadAuthState().currentUser).toBeNull();
+  });
+
+  it("updates the signed-in profile and changes an email account password", async () => {
+    stubStorage();
+    const user = await registerWithEmail(
+      "Ana Lima",
+      "",
+      "ana@example.com",
+      "senha123",
+    );
+    const updatedUser = await updateCurrentUserProfile({
+      name: "Ana Souza",
+      church: "Igreja Esperança",
+      email: "ANA.SOUZA@example.com",
+      password: "novaSenha456",
+    });
+
+    expect(updatedUser).toMatchObject({
+      id: user.id,
+      name: "Ana Souza",
+      church: "Igreja Esperança",
+      email: "ana.souza@example.com",
+    });
+    expect(updatedUser.password).toBeUndefined();
+    expect(loadAuthState().currentUser).toMatchObject({
+      id: user.id,
+      name: "Ana Souza",
+      email: "ana.souza@example.com",
+    });
+    await expect(loginWithEmail(user.email, "senha123")).rejects.toThrow(
+      "E-mail ou senha incorretos",
+    );
+    expect(
+      (await loginWithEmail(updatedUser.email, "novaSenha456")).id,
+    ).toBe(user.id);
+  });
+
+  it("rejects profile changes that collide with another account", async () => {
+    stubStorage();
+    await registerWithEmail("Ana Lima", "", "ana@example.com", "senha123");
+    await expect(
+      updateCurrentUserProfile({
+        name: "Ana Lima",
+        church: "",
+        email: "teste@lyricmotion.com",
+      }),
+    ).rejects.toThrow("Já existe uma conta cadastrada");
   });
 });

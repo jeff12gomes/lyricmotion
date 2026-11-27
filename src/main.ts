@@ -8,17 +8,71 @@ import { buildScenes, buildTimes } from "./scenes";
 import {
   createDefaultProject,
   getEffectiveStyle,
+  loadAuthState,
   loadLibrary,
+  logoutUser,
   saveProjectToLibrary,
 } from "./state";
 import { mountDashboard } from "./ui/dashboard";
+import { mountHome } from "./ui/home";
 import {
   mountPanels,
   renderSceneVideos,
   type GeneratedVideo,
 } from "./ui/panels";
-import type { Scene } from "./types";
+import type { Scene, UserAccount } from "./types";
 import "./ui/styles.css";
+
+type AppView = "home" | "dashboard" | "editor";
+
+interface NavigationRoute {
+  view: AppView;
+  projectId?: string;
+}
+
+interface NavigationState {
+  currentRoute: NavigationRoute;
+  historyStack: NavigationRoute[];
+}
+
+const NAVIGATION_STORAGE_KEY = "lyricmotion:navegacao:v1";
+
+function isNavigationRoute(value: unknown): value is NavigationRoute {
+  if (!value || typeof value !== "object") return false;
+  const route = value as Record<string, unknown>;
+  if (
+    route.view !== "home" &&
+    route.view !== "dashboard" &&
+    route.view !== "editor"
+  ) {
+    return false;
+  }
+  return route.view !== "editor" || typeof route.projectId === "string";
+}
+
+function consumeNavigationState(): NavigationState {
+  const defaultState: NavigationState = {
+    currentRoute: { view: "home" },
+    historyStack: [],
+  };
+  try {
+    const stored = window.sessionStorage.getItem(NAVIGATION_STORAGE_KEY);
+    window.sessionStorage.removeItem(NAVIGATION_STORAGE_KEY);
+    if (!stored) return defaultState;
+    const parsed: unknown = JSON.parse(stored);
+    if (!parsed || typeof parsed !== "object") return defaultState;
+    const data = parsed as Record<string, unknown>;
+    if (!isNavigationRoute(data.currentRoute)) return defaultState;
+    return {
+      currentRoute: data.currentRoute,
+      historyStack: Array.isArray(data.historyStack)
+        ? data.historyStack.filter(isNavigationRoute)
+        : [],
+    };
+  } catch {
+    return defaultState;
+  }
+}
 
 function getElement<T extends HTMLElement>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -521,6 +575,7 @@ async function startPreview(
   });
 
   const frame = (timestamp: number) => {
+    if (editorView.hidden) return;
     let time = player.now();
     const sceneDuration = project.settings.secondsPerScene;
     if (!live.isActive && player.isPlaying && time >= sceneDuration) {
@@ -668,72 +723,178 @@ async function startPreview(
         }
       }
     }
-    requestAnimationFrame(frame);
+    if (!editorView.hidden) requestAnimationFrame(frame);
   };
 
   updatePlaybackControls();
   updateSceneList();
-  requestAnimationFrame(frame);
-}
-
-function openProject(projectId: string): void {
-  window.location.hash = `editor/${encodeURIComponent(projectId)}`;
-  window.location.reload();
-}
-
-function startNewProject(): void {
-  try {
-    const project = createDefaultProject();
-    project.title = "";
-    project.lyrics = "";
-    const library = saveProjectToLibrary(project);
-    const newProject = library.projects.find(({ id }) => id === project.id);
-    if (!newProject) {
-      getElement<HTMLElement>("#dashboardStatus").textContent =
-        "Não foi possível criar a música.";
-      return;
-    }
-    openProject(newProject.id);
-  } catch {
-    getElement<HTMLElement>("#dashboardStatus").textContent =
-      "Não foi possível criar a música neste navegador.";
-  }
+  if (!editorView.hidden) requestAnimationFrame(frame);
 }
 
 function boot(): void {
+  const homeView = getElement<HTMLElement>("#homeView");
+  const appHeader = getElement<HTMLElement>("#appHeader");
+  const headerBrand = getElement<HTMLAnchorElement>("#appHeaderBrand");
+  const headerBack = getElement<HTMLButtonElement>("#appHeaderBack");
+  const headerUser = getElement<HTMLElement>("#appHeaderUser");
+  const headerLogout = getElement<HTMLButtonElement>("#appHeaderLogout");
   const dashboardView = getElement<HTMLElement>("#dashboardView");
   const editorView = getElement<HTMLElement>("#editorView");
-  const dashboard = mountDashboard(dashboardView, {
-    onOpenProject: openProject,
-    onCreateProject: startNewProject,
-  });
-  const routeMatch = window.location.hash.match(/^#editor\/(.+)$/);
-  let projectId: string | null = null;
-  try {
-    projectId = routeMatch ? decodeURIComponent(routeMatch[1]) : null;
-  } catch {
-    projectId = null;
-  }
-  const project = projectId
-    ? loadLibrary().projects.find(({ id }) => id === projectId)
-    : undefined;
+  const dashboardStatus = getElement<HTMLElement>("#dashboardStatus");
+  const navigationState = consumeNavigationState();
+  let currentRoute = navigationState.currentRoute;
+  const historyStack = navigationState.historyStack;
+  let activeView: AppView = "home";
 
-  if (!project) {
+  function persistNavigationAndReload(): void {
+    const state: NavigationState = { currentRoute, historyStack };
+    try {
+      window.sessionStorage.setItem(
+        NAVIGATION_STORAGE_KEY,
+        JSON.stringify(state),
+      );
+      const hash =
+        currentRoute.view === "editor"
+          ? `editor/${encodeURIComponent(currentRoute.projectId ?? "")}`
+          : currentRoute.view;
+      window.location.hash = hash;
+      window.location.reload();
+    } catch {
+      const message = "Não foi possível navegar nesta sessão do navegador.";
+      const status =
+        activeView === "editor"
+          ? document.querySelector<HTMLElement>("#status")
+          : activeView === "home"
+            ? homeView.querySelector<HTMLElement>("#homeStatus")
+            : dashboardStatus;
+      if (status) status.textContent = message;
+    }
+  }
+
+  function navigateTo(view: AppView, projectId?: string): void {
+    if (view === "editor" && !projectId) {
+      dashboardStatus.textContent = "Selecione uma música para abrir o editor.";
+      return;
+    }
+    historyStack.push(currentRoute);
+    currentRoute =
+      view === "editor" ? { view, projectId } : { view };
+    persistNavigationAndReload();
+  }
+
+  function goBack(): void {
+    const fallbackRoute: NavigationRoute =
+      currentRoute.view === "editor"
+        ? { view: "dashboard" }
+        : { view: "home" };
+    currentRoute = historyStack.pop() ?? fallbackRoute;
+    persistNavigationAndReload();
+  }
+
+  function logOutAndGoHome(): void {
+    try {
+      logoutUser();
+      currentRoute = { view: "home" };
+      historyStack.length = 0;
+      persistNavigationAndReload();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível encerrar a sessão.";
+      const status =
+        activeView === "editor"
+          ? document.querySelector<HTMLElement>("#status")
+          : activeView === "home"
+            ? homeView.querySelector<HTMLElement>("#homeStatus")
+            : dashboardStatus;
+      if (status) status.textContent = message;
+    }
+  }
+
+  function updateHeaderUser(user: UserAccount): void {
+    headerUser.textContent = user.church
+      ? `${user.name} · ${user.church}`
+      : user.name;
+  }
+
+  function showInternalHeader(
+    user: UserAccount,
+    view: "dashboard" | "editor",
+  ): void {
+    activeView = view;
+    appHeader.hidden = false;
+    updateHeaderUser(user);
+  }
+
+  headerBrand.addEventListener("click", (event) => {
+    event.preventDefault();
+    navigateTo("home");
+  });
+  headerBack.addEventListener("click", goBack);
+  headerLogout.addEventListener("click", logOutAndGoHome);
+
+  mountHome(homeView, {
+    onAuthenticated: () => navigateTo("dashboard"),
+    onGoToDashboard: () => navigateTo("dashboard"),
+    onLogout: logOutAndGoHome,
+  });
+  const dashboard = mountDashboard(dashboardView, {
+    onOpenProject: (projectId) => navigateTo("editor", projectId),
+    onCreateProject: () => {
+      try {
+        const project = createDefaultProject();
+        project.title = "";
+        project.lyrics = "";
+        const library = saveProjectToLibrary(project);
+        const newProject = library.projects.find(({ id }) => id === project.id);
+        if (!newProject) {
+          dashboardStatus.textContent =
+            "Não foi possível criar a música.";
+          return;
+        }
+        navigateTo("editor", newProject.id);
+      } catch {
+        dashboardStatus.textContent =
+          "Não foi possível criar a música neste navegador.";
+      }
+    },
+    onUserUpdated: updateHeaderUser,
+  });
+  const authState = loadAuthState();
+  const signedInUser = authState.currentUser;
+  if (!signedInUser) currentRoute = { view: "home" };
+  if (currentRoute.view === "editor" && signedInUser) {
+    const project = loadLibrary().projects.find(
+      ({ id }) => id === currentRoute.projectId,
+    );
+    if (project) {
+      homeView.hidden = true;
+      appHeader.hidden = false;
+      dashboardView.hidden = true;
+      editorView.hidden = false;
+      showInternalHeader(signedInUser, "editor");
+      void startPreview(project, goBack);
+      return;
+    }
+    currentRoute = { view: "dashboard" };
+  }
+
+  if (currentRoute.view === "dashboard" && signedInUser) {
+    homeView.hidden = true;
+    appHeader.hidden = false;
     dashboardView.hidden = false;
     editorView.hidden = true;
-    window.location.hash = "";
+    showInternalHeader(signedInUser, "dashboard");
     return;
   }
 
+  activeView = "home";
+  homeView.hidden = false;
+  appHeader.hidden = true;
   dashboardView.hidden = true;
-  editorView.hidden = false;
-  void startPreview(project, () => {
-    dashboardView.hidden = false;
-    editorView.hidden = true;
-    window.location.hash = "";
-    dashboard.refresh();
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  });
+  editorView.hidden = true;
+  if (window.location.hash !== "#home") window.location.hash = "home";
 }
 
 boot();

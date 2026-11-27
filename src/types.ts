@@ -117,6 +117,20 @@ export interface LibraryData {
   projects: Project[];
 }
 
+export interface UserAccount {
+  id: string;
+  name: string;
+  church: string;
+  email: string;
+  password?: string;
+  provider: "email" | "google";
+}
+
+export interface AuthState {
+  currentUser: UserAccount | null;
+  users: UserAccount[];
+}
+
 export interface Theme {
   id: string;
   name: string;

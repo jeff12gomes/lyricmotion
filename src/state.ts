@@ -2,6 +2,7 @@ import { FONT_CATALOG, THEMES } from "./render/themes";
 import type {
   Animation,
   AnimationUnit,
+  AuthState,
   FontFamily,
   LibraryData,
   Project,
@@ -9,11 +10,16 @@ import type {
   Resolution,
   SceneStyle,
   Settings,
+  UserAccount,
 } from "./types";
 
 const LIBRARY_STORAGE_KEY = "lyricmotion:biblioteca:v1";
 const LEGACY_STORAGE_KEY = "lyricmotion:projeto:v1";
+const AUTH_STORAGE_KEY = "lyricmotion:auth:v1";
 const DEFAULT_USER_NAME = "Equipe de Mídia";
+const DEMO_EMAIL = "teste@lyricmotion.com";
+const DEMO_PASSWORD_HASH =
+  "pbkdf2-sha256$120000$6c797269636d6f74696f6e2d64656d6f$2f2f0de1c0955400e46b45c7c26e7ef9bff14e546347ea562b671cf7872eb4cc";
 const SAMPLE_LYRICS = [
   "Tu és fiel em cada amanhecer",
   "Teu *amor* me alcança outra vez",
@@ -85,6 +91,298 @@ function createProjectId(): string {
     return globalThis.crypto.randomUUID();
   }
   return `projeto-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function createAccountId(): string {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+  return `conta-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function createDemoAccount(): UserAccount {
+  return {
+    id: "conta-demo-lyricmotion",
+    name: "Equipe de Mídia",
+    church: "",
+    email: DEMO_EMAIL,
+    password: DEMO_PASSWORD_HASH,
+    provider: "email",
+  };
+}
+
+function publicAccount(account: UserAccount): UserAccount {
+  const { password: _password, ...safeAccount } = account;
+  return safeAccount;
+}
+
+function isUserAccount(value: unknown): value is UserAccount {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.name === "string" &&
+    typeof value.church === "string" &&
+    typeof value.email === "string" &&
+    (value.password === undefined || typeof value.password === "string") &&
+    isOneOf(value.provider, ["email", "google"] as const)
+  );
+}
+
+function defaultAuthState(): AuthState {
+  return { currentUser: null, users: [createDemoAccount()] };
+}
+
+async function hashPassword(password: string): Promise<string> {
+  const cryptoApi = globalThis.crypto;
+  if (!cryptoApi?.subtle || typeof TextEncoder === "undefined") {
+    throw new Error(
+      "Este navegador não oferece armazenamento seguro de senha para o teste local.",
+    );
+  }
+  const salt = cryptoApi.getRandomValues(new Uint8Array(16));
+  const saltHex = Array.from(salt, (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+  return derivePasswordHash(password, saltHex);
+}
+
+async function derivePasswordHash(
+  password: string,
+  saltHex: string,
+): Promise<string> {
+  const cryptoApi = globalThis.crypto;
+  const salt = Uint8Array.from(
+    saltHex.match(/.{2}/g) ?? [],
+    (byte) => Number.parseInt(byte, 16),
+  );
+  const key = await cryptoApi.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"],
+  );
+  const digest = await cryptoApi.subtle.deriveBits(
+    { name: "PBKDF2", hash: "SHA-256", salt, iterations: 120000 },
+    key,
+    256,
+  );
+  const hex = Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+  return `pbkdf2-sha256$120000$${saltHex}$${hex}`;
+}
+
+async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+  const [algorithm, iterations, saltHex] = storedHash.split("$");
+  if (
+    algorithm !== "pbkdf2-sha256" ||
+    iterations !== "120000" ||
+    !/^[\da-f]{32}$/i.test(saltHex ?? "")
+  ) {
+    return false;
+  }
+  return (await derivePasswordHash(password, saltHex)) === storedHash;
+}
+
+function persistAuthState(state: AuthState): void {
+  try {
+    globalThis.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    throw new Error(
+      "Não foi possível salvar a sessão neste navegador. Verifique o armazenamento local.",
+    );
+  }
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function validateEmail(email: string): void {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("Informe um endereço de e-mail válido.");
+  }
+}
+
+function activateUser(state: AuthState, user: UserAccount): UserAccount {
+  const signedInUser = publicAccount(user);
+  state.currentUser = signedInUser;
+  persistAuthState(state);
+  return signedInUser;
+}
+
+export function loadAuthState(): AuthState {
+  try {
+    const stored = globalThis.localStorage.getItem(AUTH_STORAGE_KEY);
+    if (stored === null) {
+      const state = defaultAuthState();
+      globalThis.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state));
+      return state;
+    }
+
+    const parsed: unknown = JSON.parse(stored);
+    if (!isRecord(parsed)) return defaultAuthState();
+    const users = Array.isArray(parsed.users)
+      ? parsed.users.filter(isUserAccount)
+      : [];
+    if (!users.some(({ email }) => normalizeEmail(email) === DEMO_EMAIL)) {
+      users.unshift(createDemoAccount());
+    }
+    const currentUserId = isUserAccount(parsed.currentUser)
+      ? parsed.currentUser.id
+      : null;
+    const currentUser = users.find(({ id }) => id === currentUserId) ?? null;
+    return {
+      currentUser: currentUser ? publicAccount(currentUser) : null,
+      users,
+    };
+  } catch {
+    return defaultAuthState();
+  }
+}
+
+export async function registerWithEmail(
+  name: string,
+  church: string,
+  email: string,
+  password: string,
+): Promise<UserAccount> {
+  const normalizedName = name.trim();
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedName || !normalizedEmail || !password) {
+    throw new Error("Preencha nome, e-mail e senha para criar sua conta.");
+  }
+  validateEmail(normalizedEmail);
+  if (password.length < 6) {
+    throw new Error("A senha deve ter pelo menos 6 caracteres.");
+  }
+  const state = loadAuthState();
+  if (
+    state.users.some(
+      (user) => normalizeEmail(user.email) === normalizedEmail,
+    )
+  ) {
+    throw new Error("Já existe uma conta cadastrada com este e-mail.");
+  }
+  const account: UserAccount = {
+    id: createAccountId(),
+    name: normalizedName,
+    church: church.trim(),
+    email: normalizedEmail,
+    password: await hashPassword(password),
+    provider: "email",
+  };
+  state.users.push(account);
+  return activateUser(state, account);
+}
+
+export async function loginWithEmail(
+  email: string,
+  password: string,
+): Promise<UserAccount> {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail || !password) {
+    throw new Error("Informe seu e-mail e sua senha.");
+  }
+  validateEmail(normalizedEmail);
+  const state = loadAuthState();
+  const account = state.users.find(
+    (user) =>
+      user.provider === "email" &&
+      normalizeEmail(user.email) === normalizedEmail,
+  );
+  if (
+    !account?.password ||
+    !(await verifyPassword(password, account.password))
+  ) {
+    throw new Error("E-mail ou senha incorretos.");
+  }
+  return activateUser(state, account);
+}
+
+export function loginWithGoogle(
+  name: string,
+  email: string,
+): UserAccount {
+  const normalizedName = name.trim();
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedName || !normalizedEmail) {
+    throw new Error("Informe o nome e o e-mail da conta Google.");
+  }
+  validateEmail(normalizedEmail);
+  const state = loadAuthState();
+  const existing = state.users.find(
+    (user) => normalizeEmail(user.email) === normalizedEmail,
+  );
+  if (existing && existing.provider !== "google") {
+    throw new Error(
+      "Este e-mail já está cadastrado. Entre usando e-mail e senha.",
+    );
+  }
+  const account =
+    existing ??
+    ({
+      id: createAccountId(),
+      name: normalizedName,
+      church: "",
+      email: normalizedEmail,
+      provider: "google",
+    } satisfies UserAccount);
+  if (!existing) state.users.push(account);
+  return activateUser(state, account);
+}
+
+export function logoutUser(): void {
+  const state = loadAuthState();
+  state.currentUser = null;
+  persistAuthState(state);
+}
+
+export async function updateCurrentUserProfile(
+  profile: {
+    name: string;
+    church: string;
+    email: string;
+    password?: string;
+  },
+): Promise<UserAccount> {
+  const state = loadAuthState();
+  const currentUserId = state.currentUser?.id;
+  const account = state.users.find(({ id }) => id === currentUserId);
+  if (!account) {
+    throw new Error("Sua sessão expirou. Entre novamente para editar o cadastro.");
+  }
+
+  const name = profile.name.trim();
+  const email = normalizeEmail(profile.email);
+  if (!name || !email) {
+    throw new Error("Preencha seu nome e e-mail.");
+  }
+  validateEmail(email);
+  if (
+    state.users.some(
+      (user) => user.id !== account.id && normalizeEmail(user.email) === email,
+    )
+  ) {
+    throw new Error("Já existe uma conta cadastrada com este e-mail.");
+  }
+
+  const password = profile.password ?? "";
+  if (password && account.provider !== "email") {
+    throw new Error("A senha só pode ser alterada em contas de e-mail.");
+  }
+  if (password && password.length < 6) {
+    throw new Error("A senha deve ter pelo menos 6 caracteres.");
+  }
+
+  account.name = name;
+  account.church = profile.church.trim();
+  account.email = email;
+  if (password) account.password = await hashPassword(password);
+  state.currentUser = publicAccount(account);
+  persistAuthState(state);
+  return publicAccount(account);
 }
 
 function createDefaultLibrary(): LibraryData {
