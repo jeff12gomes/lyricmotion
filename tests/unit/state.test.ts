@@ -46,6 +46,15 @@ describe("project state", () => {
     expect(loadProject()).toEqual(createDefaultProject());
   });
 
+  it("loads projects using fonts introduced by the new themes", () => {
+    const project = createDefaultProject();
+    project.settings.themeId = "sublime";
+    project.settings.font = "Anton";
+    stubStorage({ [STORAGE_KEY]: JSON.stringify(project) });
+
+    expect(loadProject()).toEqual(project);
+  });
+
   it("returns the default project when a setting references an unknown theme", () => {
     const invalidProject = createDefaultProject();
     invalidProject.settings.themeId = "unknown";

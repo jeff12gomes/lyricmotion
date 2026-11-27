@@ -6,11 +6,30 @@ export type Resolution =
   | "2560x720"
   | "1080x1920";
 export type FontFamily =
+  | "Anton"
+  | "Caveat"
+  | "Dancing Script"
+  | "Great Vibes"
   | "Montserrat"
+  | "Oswald"
   | "Poppins"
   | "Playfair Display"
   | "Lora"
   | "Bebas Neue";
+export type ThemeBackground =
+  | "aurora"
+  | "raios"
+  | "bokeh"
+  | "estrelas"
+  | "ondas"
+  | "suave"
+  | "chapado"
+  | "seda"
+  | "diagonal"
+  | "bordas"
+  | "liquido"
+  | "feixes"
+  | "carmim";
 
 export interface Scene {
   text: string;
@@ -40,9 +59,10 @@ export interface Project {
 export interface Theme {
   id: string;
   name: string;
-  bg: string;
+  bg: ThemeBackground;
   c: [string, string, string];
   font: FontFamily;
+  highlightFont: FontFamily;
   ink: string;
   hl: string;
   anim: Animation;

@@ -23,7 +23,12 @@ const SAMPLE_LYRICS = [
 const animations: Animation[] = ["subir", "palavras", "zoom"];
 const positions: Position[] = ["centro", "baixo"];
 const fonts: FontFamily[] = [
+  "Anton",
+  "Caveat",
+  "Dancing Script",
+  "Great Vibes",
   "Montserrat",
+  "Oswald",
   "Poppins",
   "Playfair Display",
   "Lora",

@@ -265,21 +265,180 @@ textarea:focus-visible {
 .themes {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: 76px;
   gap: 8px;
+  height: 160px;
+  margin-bottom: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--color-text-secondary) var(--color-panel);
+  scrollbar-width: thin;
 }
 
 .theme {
+  position: relative;
   display: flex;
+  flex-direction: column;
   min-width: 0;
-  min-height: 58px;
-  align-items: flex-end;
-  padding: 6px;
+  min-height: 0;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 8px;
+  overflow: hidden;
   border: 2px solid transparent;
   border-radius: 10px;
-  color: #fff;
-  font: 800 12px/1.1 "Manrope", sans-serif;
+  color: var(--color-text);
+  font: 600 10px/1.1 "Manrope", sans-serif;
   text-align: left;
   cursor: pointer;
+}
+
+.theme::before,
+.theme::after {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+}
+
+.theme::before {
+  background-image:
+    radial-gradient(ellipse at 75% 20%, color-mix(in srgb, var(--theme-c) 60%, transparent), transparent 55%),
+    linear-gradient(135deg, var(--theme-a), var(--theme-b) 60%, var(--theme-c));
+  background-size: 180% 180%;
+  animation: theme-preview-drift 14s ease-in-out infinite alternate;
+}
+
+.theme::after {
+  background: linear-gradient(0deg, #0005, transparent 75%);
+}
+
+.theme[data-background="seda"]::before {
+  background-image:
+    radial-gradient(ellipse at 20% 75%, #a8a39c99, transparent 54%),
+    radial-gradient(ellipse at 75% 15%, #ffffffb3, transparent 48%),
+    linear-gradient(135deg, var(--theme-a), var(--theme-b), #f7f5f0);
+}
+
+.theme[data-background="diagonal"]::before {
+  background-image:
+    repeating-linear-gradient(135deg, transparent 0 16px, #ffffff20 17px 20px, transparent 21px 38px),
+    linear-gradient(135deg, var(--theme-a), var(--theme-b) 62%, var(--theme-c));
+  background-size: 170% 170%;
+}
+
+.theme[data-background="bordas"]::before {
+  background-image:
+    radial-gradient(ellipse at -5% 50%, var(--theme-c) 0, transparent 52%),
+    radial-gradient(ellipse at 105% 45%, var(--theme-c) 0, transparent 50%),
+    linear-gradient(135deg, var(--theme-a), var(--theme-b));
+  animation-duration: 8s;
+}
+
+.theme[data-background="liquido"]::before {
+  background-image:
+    radial-gradient(ellipse at 75% 10%, var(--theme-c) 0, transparent 48%),
+    repeating-radial-gradient(ellipse at 20% 130%, transparent 0 18px, #ffffff1f 20px 24px, transparent 26px 40px),
+    linear-gradient(140deg, var(--theme-a), var(--theme-b));
+  background-size: 180% 180%;
+}
+
+.theme[data-background="feixes"]::before {
+  background-image:
+    repeating-linear-gradient(115deg, transparent 0 21px, color-mix(in srgb, var(--theme-c) 45%, transparent) 23px 26px, transparent 28px 48px),
+    radial-gradient(ellipse at 50% 110%, var(--theme-c), transparent 65%),
+    linear-gradient(135deg, var(--theme-a), var(--theme-b));
+  background-size: 180% 180%;
+}
+
+.theme[data-background="carmim"]::before {
+  background-image:
+    repeating-linear-gradient(90deg, transparent 0 8px, #28040a40 9px 10px),
+    radial-gradient(ellipse at 78% 15%, var(--theme-c), transparent 55%),
+    linear-gradient(135deg, var(--theme-a), var(--theme-b));
+}
+
+.theme[data-background="aurora"]::before {
+  background-image:
+    radial-gradient(ellipse at 70% 20%, var(--theme-c), transparent 62%),
+    radial-gradient(ellipse at 25% 80%, var(--theme-b), transparent 65%),
+    linear-gradient(135deg, var(--theme-a), #15102e);
+}
+
+.theme[data-background="raios"]::before {
+  background-image:
+    repeating-conic-gradient(from 220deg at 50% -10%, transparent 0 12deg, #ffe2a140 13deg 15deg, transparent 16deg 28deg),
+    radial-gradient(ellipse at 50% 0%, var(--theme-c), transparent 80%),
+    linear-gradient(135deg, var(--theme-a), var(--theme-b));
+}
+
+.theme[data-background="bokeh"]::before {
+  background-image:
+    radial-gradient(circle at 18% 30%, var(--theme-c) 0 3px, transparent 9px),
+    radial-gradient(circle at 75% 72%, #ffffff70 0 2px, transparent 8px),
+    radial-gradient(circle at 60% 18%, var(--theme-c) 0 4px, transparent 12px),
+    linear-gradient(135deg, var(--theme-a), var(--theme-b));
+  background-size: 160% 160%;
+}
+
+.theme[data-background="estrelas"]::before {
+  background-image:
+    radial-gradient(circle at 20% 25%, #ffffff 0 1px, transparent 2px),
+    radial-gradient(circle at 68% 35%, #ffffffb3 0 1px, transparent 2px),
+    radial-gradient(circle at 85% 72%, var(--theme-c) 0 2px, transparent 4px),
+    linear-gradient(135deg, var(--theme-a), var(--theme-b));
+}
+
+.theme[data-background="ondas"]::before {
+  background-image:
+    repeating-radial-gradient(ellipse at 45% 140%, transparent 0 15px, color-mix(in srgb, var(--theme-c) 45%, transparent) 17px 20px, transparent 22px 34px),
+    linear-gradient(135deg, var(--theme-a), var(--theme-b));
+  background-size: 180% 180%;
+}
+
+.theme-sample,
+.theme-name {
+  position: relative;
+  z-index: 1;
+}
+
+.theme-sample {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px #0008;
+}
+
+.theme-sample span:last-child {
+  font-size: 17px;
+}
+
+.theme-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px #0009;
+  white-space: nowrap;
+}
+
+.theme[data-background="seda"] .theme-sample,
+.theme[data-background="bordas"] .theme-sample,
+.theme[data-background="suave"] .theme-sample {
+  text-shadow: 0 1px 2px #ffffffaa;
+}
+
+.theme[data-background="chapado"]::before {
+  animation: none;
+}
+
+.theme[data-background="chapado"]::after {
+  background: none;
 }
 
 .theme[aria-pressed="true"] {
@@ -288,6 +447,16 @@ textarea:focus-visible {
 
 .theme:hover {
   filter: brightness(1.12);
+}
+
+@keyframes theme-preview-drift {
+  from {
+    background-position: 0% 40%;
+  }
+
+  to {
+    background-position: 100% 60%;
+  }
 }
 
 .check {
@@ -487,6 +656,10 @@ textarea:focus-visible {
 }
 
 @media (max-width: 480px) {
+  .themes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .transport {
     gap: 8px;
     padding-inline: 12px;

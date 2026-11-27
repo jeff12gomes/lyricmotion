@@ -123,14 +123,33 @@ export function mountPanels(
 
   for (const theme of THEMES) {
     const button = document.createElement("button");
+    const sample = document.createElement("span");
+    const sampleStart = document.createElement("span");
+    const sampleHighlight = document.createElement("span");
+    const name = document.createElement("span");
     button.type = "button";
     button.className = "theme";
     button.dataset.themeId = theme.id;
-    button.textContent = theme.name;
+    button.dataset.background = theme.bg;
+    button.setAttribute("aria-label", `Prévia do tema ${theme.name}`);
     button.setAttribute("aria-pressed", "false");
     button.style.background = `linear-gradient(135deg, ${theme.c[0]}, ${theme.c[1]} 60%, ${theme.c[2]})`;
-    button.style.color = theme.id === "claro" ? "#1d1a16" : "#fff";
-    button.style.textShadow = theme.id === "claro" ? "none" : "0 1px 3px #000";
+    button.style.color = theme.ink;
+    button.style.setProperty("--theme-a", theme.c[0]);
+    button.style.setProperty("--theme-b", theme.c[1]);
+    button.style.setProperty("--theme-c", theme.c[2]);
+    sample.className = "theme-sample";
+    sampleStart.textContent = "TÃO ";
+    sampleStart.style.fontFamily = `"${theme.font}", sans-serif`;
+    sampleStart.style.fontWeight = String(FONTS[theme.font]);
+    sampleHighlight.textContent = theme.name;
+    sampleHighlight.style.fontFamily = `"${theme.highlightFont}", cursive`;
+    sampleHighlight.style.fontWeight = String(FONTS[theme.highlightFont]);
+    sampleHighlight.style.color = theme.hl;
+    name.className = "theme-name";
+    name.textContent = theme.name;
+    sample.append(sampleStart, sampleHighlight);
+    button.append(sample, name);
     themeGrid.append(button);
   }
 
